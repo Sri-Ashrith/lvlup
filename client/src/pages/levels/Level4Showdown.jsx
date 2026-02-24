@@ -19,6 +19,9 @@ import {
   Star
 } from 'lucide-react';
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+const API_URL = `${API_BASE_URL}/api`;
+
 export default function Level4Showdown() {
   const navigate = useNavigate();
   const { team, token } = useAuth();
@@ -79,7 +82,7 @@ Present your idea clearly and convince the judges why your solution matters.`,
     setSubmitError('');
     try {
       // L4-01: Send submission to server
-      await axios.post('http://localhost:3001/api/level4/submit', 
+      await axios.post(`${API_URL}/level4/submit`, 
         { submission: submission.trim() },
         { headers: { Authorization: `Bearer ${token}` } }
       );

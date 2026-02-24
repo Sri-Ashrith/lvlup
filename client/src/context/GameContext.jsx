@@ -4,7 +4,8 @@ import { useAuth } from './AuthContext';
 
 const GameContext = createContext(null);
 
-const API_URL = 'http://localhost:3001/api';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+const API_URL = `${API_BASE_URL}/api`;
 
 export function GameProvider({ children }) {
   const { socket, team, updateTeam, token } = useAuth();

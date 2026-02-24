@@ -4,7 +4,9 @@ import { io } from 'socket.io-client';
 
 const AuthContext = createContext(null);
 
-const API_URL = 'http://localhost:3001/api';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+const API_URL = `${API_BASE_URL}/api`;
+const SOCKET_URL = (import.meta.env.VITE_SOCKET_URL || API_BASE_URL).replace(/\/$/, '');
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -31,7 +33,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (token && !socket) {
       // AUTH-08: Send JWT token with socket connection for server-side auth
-      const newSocket = io('http://localhost:3001', {
+      const newSocket = io(SOCKET_URL, {
         auth: { token }
       });
       
@@ -96,7 +98,7 @@ export function AuthProvider({ children }) {
       return { success: true };
     } catch (error) {
       if (!error.response) {
-        return { success: false, error: 'Cannot reach server. Make sure backend is running on port 3001.' };
+        return { success: false, error: 'Cannot reach server. Check VITE_API_URL/VITE_SOCKET_URL and backend availability.' };
       }
       return { success: false, error: error.response?.data?.error || 'Login failed' };
     }
