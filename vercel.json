@@ -6,7 +6,7 @@
   "outputDirectory": "client/dist",
   "functions": {
     "api/[...path].js": {
-      "runtime": "nodejs22.x"
+      "runtime": "nodejs@22.x"
     }
   }
 }
