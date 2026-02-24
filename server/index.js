@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url';
 import { supabase, supabaseReady, supabaseError } from './supabaseClient.js';
 
 dotenv.config();
+const IS_VERCEL = process.env.VERCEL === '1';
 
 // SEC-07: CORS configuration — allow configured origins (comma-separated)
 const CLIENT_ORIGIN_RAW = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
@@ -50,6 +51,14 @@ app.use(cors({
   }
 }));
 app.use(express.json());
+
+app.get('/', (req, res) => {
+  res.status(200).json({ ok: true, service: 'level-up-backend' });
+});
+
+app.get('/healthz', (req, res) => {
+  res.status(200).json({ ok: true });
+});
 
 app.get('/api/db-ping', async (req, res) => {
   if (!supabaseReady || !supabase) {
@@ -994,8 +1003,10 @@ function autoSaveState() {
   }
 }
 
-// Auto-save every 60 seconds
-setInterval(autoSaveState, 60000);
+// Auto-save every 60 seconds (disable on serverless)
+if (!IS_VERCEL) {
+  setInterval(autoSaveState, 60000);
+}
 
 // Load saved state on startup if available
 try {
@@ -1015,9 +1026,14 @@ try {
 }
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
-  console.log(`🎮 LEVEL UP Server running on port ${PORT}`);
-  console.log(`📊 ${Object.keys(gameState.teams).length} teams initialized`);
-  // Save on startup to confirm file is writable
-  autoSaveState();
-});
+
+if (!IS_VERCEL) {
+  server.listen(PORT, () => {
+    console.log(`🎮 LEVEL UP Server running on port ${PORT}`);
+    console.log(`📊 ${Object.keys(gameState.teams).length} teams initialized`);
+    // Save on startup to confirm file is writable
+    autoSaveState();
+  });
+}
+
+export { app };
