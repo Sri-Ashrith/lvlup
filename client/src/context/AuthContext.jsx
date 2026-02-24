@@ -66,7 +66,11 @@ export function AuthProvider({ children }) {
 
   const loginTeam = async (accessCode) => {
     try {
-      const response = await axios.post(`${API_URL}/auth/team-login`, { accessCode });
+      const response = await axios.post(
+        `${API_URL}/auth/team-login`,
+        { accessCode },
+        { timeout: 15000 }
+      );
       const { token: newToken, team: teamData, powerUps } = response.data;
       
       setToken(newToken);
@@ -81,13 +85,20 @@ export function AuthProvider({ children }) {
       
       return { success: true };
     } catch (error) {
+      if (error.code === 'ECONNABORTED') {
+        return { success: false, error: 'Request timed out. Backend may be sleeping or unreachable.' };
+      }
       return { success: false, error: error.response?.data?.error || 'Login failed' };
     }
   };
 
   const loginAdmin = async (password) => {
     try {
-      const response = await axios.post(`${API_URL}/auth/admin-login`, { password });
+      const response = await axios.post(
+        `${API_URL}/auth/admin-login`,
+        { password },
+        { timeout: 15000 }
+      );
       const { token: newToken, role } = response.data;
       
       setToken(newToken);
@@ -100,6 +111,9 @@ export function AuthProvider({ children }) {
       
       return { success: true };
     } catch (error) {
+      if (error.code === 'ECONNABORTED') {
+        return { success: false, error: 'Request timed out. Backend may be sleeping or unreachable.' };
+      }
       if (!error.response) {
         return { success: false, error: 'Cannot reach server. Check VITE_API_URL/VITE_SOCKET_URL and backend availability.' };
       }

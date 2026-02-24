@@ -20,18 +20,23 @@ export default function AdminLogin() {
     setIsLoading(true);
     playSound('click');
 
-    const sanitizedPassword = password.trim();
-    const result = await loginAdmin(sanitizedPassword);
-    
-    if (result.success) {
-      playSound('success');
-      navigate('/admin');
-    } else {
+    try {
+      const sanitizedPassword = password.trim();
+      const result = await loginAdmin(sanitizedPassword);
+      
+      if (result.success) {
+        playSound('success');
+        navigate('/admin');
+      } else {
+        playSound('error');
+        setError(result.error);
+      }
+    } catch {
       playSound('error');
-      setError(result.error);
+      setError('Unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   return (

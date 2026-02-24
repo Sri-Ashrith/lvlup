@@ -9,26 +9,52 @@ import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { supabase } from './supabaseClient.js';
+import { supabase, supabaseReady, supabaseError } from './supabaseClient.js';
 
 dotenv.config();
 
-// SEC-07: CORS configuration — restrict origin in production
-const ALLOWED_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
+// SEC-07: CORS configuration — allow configured origins (comma-separated)
+const CLIENT_ORIGIN_RAW = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
+const ALLOWED_ORIGINS = CLIENT_ORIGIN_RAW
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true; // allow non-browser clients
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+
+  // Allow Vercel preview domains when primary Vercel domain is configured
+  const hasVercelOriginConfigured = ALLOWED_ORIGINS.some(o => /\.vercel\.app$/i.test(o));
+  if (hasVercelOriginConfigured && /\.vercel\.app$/i.test(origin)) return true;
+
+  return false;
+}
 
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ALLOWED_ORIGIN,
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
     methods: ["GET", "POST"]
   }
 });
 
-app.use(cors({ origin: ALLOWED_ORIGIN }));
+app.use(cors({
+  origin: (origin, callback) => {
+    if (isAllowedOrigin(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  }
+}));
 app.use(express.json());
 
 app.get('/api/db-ping', async (req, res) => {
+  if (!supabaseReady || !supabase) {
+    return res.status(503).json({ ok: false, error: supabaseError || 'Supabase not configured' });
+  }
   const { data, error } = await supabase.from('event_config').select('*').limit(1);
   if (error) {
     return res.status(500).json({
