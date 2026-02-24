@@ -1,0 +1,42 @@
+Level 1 - Logic
+l1_1: 4
+l1_2: 13
+l1_3: 2
+
+Level 1 - AI
+ai_1: Generative Pre-trained Transformer
+ai_2: OpenAI
+ai_3: Supervised Learning
+
+Level 1 - Tech
+tech_1: HyperText Markup Language
+tech_2: JavaScript
+tech_3: Application Programming Interface
+
+Level 2 - Brain
+brain_1: Compare string with its reverse
+brain_2: O(log n)
+brain_3: Stack is LIFO, Queue is FIFO
+
+Level 2 - No-Code
+nc_1: Webflow
+nc_2: Airtable
+nc_3: Zapier
+
+Level 2 - Prompting
+pr_1: Few-shot prompting
+pr_2: Chain of thought
+pr_3: Jailbreak
+
+Level 3 - Compound
+c_1: def
+c_2: []
+c_3: append
+
+Level 3 - Safe
+s_1: s[::-1]
+s_2: True
+s_3: arr[-1]
+
+Level 4
+No fixed answers (presentation-based scoring).

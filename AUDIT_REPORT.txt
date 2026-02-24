@@ -1,0 +1,519 @@
+================================================================================
+  LEVEL UP: FULL PLATFORM AUDIT REPORT
+================================================================================
+
+Auditor:        Principal Software Auditor / QA Lead / Security Reviewer
+Date:           February 8, 2026
+Platform:       LEVEL UP (v1.0.0)
+Scope:          Complete end-to-end audit prior to live event
+Stack:          React + Vite (client), Node.js + Express + Socket.IO (server)
+
+================================================================================
+  EXECUTIVE SUMMARY
+================================================================================
+
+The platform has significant structural and security issues that MUST be
+resolved before a live, high-stakes event. While the core gameplay loop
+functions, critical gaps in server-side validation, data persistence,
+concurrency safety, and anti-cheat measures create unacceptable risk for
+a competitive environment.
+
+RECOMMENDATION:  NO-GO  (until Critical and Major items are resolved)
+
+Summary Statistics:
+  CRITICAL:  11
+  MAJOR:     15
+  MINOR:     11
+  TOTAL:     37
+
+================================================================================
+  1. SYSTEM OVERVIEW VALIDATION
+================================================================================
+
+[PASS]    4-level event flow
+          Entry Arena, Skill Arenas, Tech Heist, Grand Showdown all routable.
+
+[PARTIAL] Real-time interactions
+          Socket.IO + 2s polling hybrid; state can desync under load.
+
+[FAIL]    In-memory game state
+          Server restart = total data loss. No database, no persistence.
+
+================================================================================
+  2. AUTHENTICATION & ROLE-BASED ACCESS
+================================================================================
+
+--- Passed Checks ---
+
+- JWT-based authentication with 8h expiry.
+- ProtectedRoute enforces role-based frontend routing (App.jsx L16-27).
+- All admin API endpoints verify req.user.role === 'admin' server-side.
+- Team identity derived from JWT token, not client-supplied data.
+
+--- Failed Checks / Bugs ---
+
+ID       | Severity | Finding
+---------|----------|----------------------------------------------------------
+AUTH-01  | CRITICAL | Admin password "admin123" displayed on login page.
+         |          | Anyone attending the event can see it.
+         |          | Location: AdminLogin.jsx L126 (Demo password: admin123)
+---------|----------|----------------------------------------------------------
+AUTH-02  | CRITICAL | Test access codes displayed on team login page.
+         |          | TEAM001/002/003 are visible to all.
+         |          | Location: TeamLogin.jsx L120-134
+---------|----------|----------------------------------------------------------
+AUTH-03  | CRITICAL | Hardcoded JWT secret 'level-up-event-secret-2026'
+         |          | used if env var not set. Token forgery is trivial.
+         |          | Location: server/index.js L24
+---------|----------|----------------------------------------------------------
+AUTH-04  | CRITICAL | Hardcoded admin password 'admin123' used if env var
+         |          | not set. Also plaintext comparison (not hashed).
+         |          | Location: server/index.js L25 and L203
+---------|----------|----------------------------------------------------------
+AUTH-05  | MAJOR    | No rate limiting on login endpoints. Brute-force
+         |          | attacks on team codes and admin password are trivial.
+         |          | Location: server/index.js L183-209
+---------|----------|----------------------------------------------------------
+AUTH-06  | MAJOR    | No concurrent session prevention. Same access code
+         |          | can log in from multiple browsers simultaneously
+         |          | with separate tokens.
+         |          | Location: server/index.js L183-196
+---------|----------|----------------------------------------------------------
+AUTH-07  | MAJOR    | Cross-team data access. /api/team/:teamId only checks
+         |          | auth presence, not that the requesting team matches
+         |          | the teamId param. Any authenticated team can read any
+         |          | other team's full progress.
+         |          | Location: server/index.js L218-225
+---------|----------|----------------------------------------------------------
+AUTH-08  | MAJOR    | Socket.IO rooms not authenticated. Any connected client
+         |          | can emit joinTeamRoom with any team ID or joinAdminRoom
+         |          | to receive all admin events. No token verification on
+         |          | socket connection.
+         |          | Location: server/index.js L642-656
+---------|----------|----------------------------------------------------------
+AUTH-09  | MINOR    | Team online status never cleared. isOnline set to true
+         |          | on login but never set to false on disconnect/logout.
+         |          | Location: server/index.js L191
+
+================================================================================
+  3. TEAM DASHBOARD AUDIT
+================================================================================
+
+--- Passed Checks ---
+
+- Cash balance displays from server-synced state.
+- Power-ups render correctly via PowerUpCard component.
+- Active level reflects eventConfig.currentLevel.
+- UI updates via 2s polling without manual refresh.
+- Disabled level cards cannot navigate (properly gated).
+- Announcements display latest broadcast.
+
+--- Failed Checks / Bugs ---
+
+ID       | Severity | Finding
+---------|----------|----------------------------------------------------------
+DASH-01  | MAJOR    | Admin can set cash below zero. team.cash += amount
+         |          | with negative amount has no floor. A team could end
+         |          | up at -$500.
+         |          | Location: server/index.js L451
+---------|----------|----------------------------------------------------------
+DASH-02  | MINOR    | Notification auto-dismiss race. The 5s timeout in
+         |          | useEffect for clearing notification fires even if a
+         |          | new notification arrives, potentially clearing the
+         |          | new one.
+         |          | Location: TeamDashboard.jsx L31-37
+
+================================================================================
+  4. LEVEL-WISE FUNCTIONAL AUDIT
+================================================================================
+
+--- LEVEL 1: ENTRY ARENA ---
+
+[PASS]    Zones load independently (each fetches via /api/challenges/1/{zone}).
+[PASS]    Questions render (answer stripped from server response).
+[PASS]    Cash rewards once per completion (server checks progress).
+[PASS]    Zone switching resets state.
+
+ID       | Severity | Finding
+---------|----------|----------------------------------------------------------
+L1-01    | MINOR    | No skip button. Documented feature "Skip buttons"
+         |          | not implemented. Teams must answer or navigate back
+         |          | manually.
+
+--- LEVEL 2: SKILL ARENAS ---
+
+[PASS]    Track A/B/C segregation.
+[PASS]    Difficulty-based rewards (Brain=high, NoCode=mid, Prompt=low).
+[PASS]    Negative cash on wrong answers (server applies penalty).
+[PASS]    No duplicate reward (server-side check).
+
+ID       | Severity | Finding
+---------|----------|----------------------------------------------------------
+L2-01    | MAJOR    | No "minimum one question per track" enforcement.
+         |          | Teams can complete all questions in one track and
+         |          | ignore others entirely. The rule documented in the
+         |          | event flow is not coded.
+---------|----------|----------------------------------------------------------
+L2-02    | MINOR    | Cash not updated locally on answer. Level2Skills
+         |          | does not call updateTeam({ cash: response.newCash })
+         |          | after answer, unlike Level1Arena. Cash display stales
+         |          | until next polling cycle.
+         |          | Location: Level2Skills.jsx L86-98
+
+--- LEVEL 3: TECH HEIST ---
+
+[PASS]    Heist initiation.
+[PASS]    Shield blocks heist.
+[PASS]    Guardian Angel reduces time.
+[PASS]    Compound: 3 questions.
+[PASS]    Safe: 3 attempts server-enforced.
+[PASS]    Success: 50% stolen.
+[PASS]    Failure: 30% transferred to defender.
+
+ID       | Severity | Finding
+---------|----------|----------------------------------------------------------
+L3-01    | CRITICAL | Heist timer is CLIENT-SIDE only. Server records
+         |          | startTime but NEVER checks elapsed time on compound/
+         |          | safe submissions. A team can disable the client timer
+         |          | via DevTools and submit answers with unlimited time.
+         |          | Location: server/index.js L344-347
+---------|----------|----------------------------------------------------------
+L3-02    | CRITICAL | Safe answer matching uses .includes(). Any string
+         |          | containing the correct answer as a substring passes.
+         |          | E.g., for answer "True", submitting "True or False -
+         |          | who knows True" would pass.
+         |          | Location: server/index.js L394
+---------|----------|----------------------------------------------------------
+L3-03    | CRITICAL | Safe cracking always uses challenges.level3.safe[0].
+         |          | Despite selecting a random challenge to send to the
+         |          | client, the server always validates against safe[0].
+         |          | Client sees one question; server checks a different
+         |          | answer.
+         |          | Location: server/index.js L393
+---------|----------|----------------------------------------------------------
+L3-04    | MAJOR    | No concurrent heist lock. Two teams can simultaneously
+         |          | heist the same target. Both check for Shield, both
+         |          | might find it, causing double-consumption. Both could
+         |          | steal 50% of target's cash, totaling 100% stolen.
+         |          | Location: server/index.js L310-350
+---------|----------|----------------------------------------------------------
+L3-05    | MAJOR    | No "collaboration" heist mode. The documented feature
+         |          | of solo vs collaboration heists with increased
+         |          | difficulty/time scaling is completely absent.
+---------|----------|----------------------------------------------------------
+L3-06    | MAJOR    | Heist status never cleared on timeout. If client
+         |          | timer fires handleTimeUp(), only UI changes. Server
+         |          | still shows heist as 'active' and team heistStatus
+         |          | as 'attacking'/'defending' forever. No server-side
+         |          | timeout cleanup.
+---------|----------|----------------------------------------------------------
+L3-07    | MINOR    | Countdown sound fires every second under 30s.
+         |          | playSound('countdown') called every tick when
+         |          | timeLeft <= 30, potentially playing 30 overlapping
+         |          | audio instances.
+         |          | Location: Level3Heist.jsx L49-51
+
+--- LEVEL 4: GRAND SHOWDOWN ---
+
+ID       | Severity | Finding
+---------|----------|----------------------------------------------------------
+L4-01    | CRITICAL | Submission is LOCAL ONLY. The "Submit Solution" button
+         |          | sets component state but NEVER calls any API. Team
+         |          | solutions are lost on page refresh. Admin cannot see
+         |          | what teams submitted.
+         |          | Location: Level4Showdown.jsx L83-87
+---------|----------|----------------------------------------------------------
+L4-02    | MINOR    | Presentation timer is client-side only (acceptable
+         |          | for this use case - judges manage timing in person).
+
+================================================================================
+  5. POWER-UPS & GAME BALANCE AUDIT
+================================================================================
+
+--- Passed Checks ---
+
+- Auto-drop on milestones (3 completed=HINT_MASTER, $2000=GUARDIAN_ANGEL,
+  $5000=SHIELD).
+- Guardian Angel effect: -30s heist time.
+- Shield blocks heist.
+- Double Cash multiplier: 2x on next correct answer.
+
+--- Failed Checks / Bugs ---
+
+ID       | Severity | Finding
+---------|----------|----------------------------------------------------------
+PU-01    | MAJOR    | HINT_MASTER power-up is non-functional. Defined and
+         |          | granted but has no activation mechanism. There is no
+         |          | code that checks for it or uses it during challenges.
+         |          | Hints are always available for free via "Show Hint"
+         |          | button.
+         |          | Location: server/index.js L55-59
+---------|----------|----------------------------------------------------------
+PU-02    | MAJOR    | TIME_FREEZE power-up is non-functional. Defined but
+         |          | never consumed or applied. No code adds 60 seconds
+         |          | to any timer when this power-up is held.
+         |          | Location: server/index.js L65-69
+---------|----------|----------------------------------------------------------
+PU-03    | MAJOR    | No stacking limits. A team can accumulate unlimited
+         |          | power-ups of the same type. Admin can drop 50 Shields
+         |          | on one team.
+         |          | Location: server/index.js L465-476
+---------|----------|----------------------------------------------------------
+PU-04    | MINOR    | difficultyMultiplier in eventConfig exists but is
+         |          | never applied to any game logic.
+         |          | Location: server/index.js L42
+
+================================================================================
+  6. ADMIN PANEL DEEP AUDIT
+================================================================================
+
+--- Passed Checks ---
+
+- Leaderboard sorting (cash-based): sort((a, b) => b.cash - a.cash).
+- Real-time updates: 5s poll for event state.
+- Add/deduct cash (with DASH-01 bug noted above).
+- Assign/remove power-ups.
+- Set active level.
+- Create team.
+- Broadcast announcements.
+- Score presentations.
+
+--- Failed Checks / Bugs ---
+
+ID       | Severity | Finding
+---------|----------|----------------------------------------------------------
+ADM-01   | MAJOR    | No admin action logging. None of the admin actions
+         |          | (cash changes, power-up drops, level changes) are
+         |          | logged. No audit trail for disputes during the event.
+         |          | Location: All admin endpoints in server/index.js
+         |          | L445-590
+---------|----------|----------------------------------------------------------
+ADM-02   | MINOR    | Create team access code generation is buggy.
+         |          | TEAM${Object.keys(gameState.teams).length + 1}
+         |          | .padStart(7, '0').slice(-7) produces malformed codes.
+         |          | E.g., for team 6: "TEAM6" -> "00TEAM6" -> "0TEAM6"
+         |          | Expected: TEAM006. Actual: 0TEAM6.
+         |          | Location: server/index.js L506
+
+Reproduction steps for ADM-02:
+  1. Login as admin
+  2. Create 6th team
+  3. "TEAM" + "6" = "TEAM6"
+     .padStart(7, '0') = "00TEAM6"
+     .slice(-7) = "0TEAM6"
+
+================================================================================
+  7. REAL-TIME & CONCURRENCY TESTING
+================================================================================
+
+ID       | Severity | Finding
+---------|----------|----------------------------------------------------------
+RT-01    | CRITICAL | No atomicity on state mutations. Challenge completion
+         |          | check (includes()) and push are separate operations.
+         |          | Two simultaneous submissions for the same challenge
+         |          | could both pass the check and both grant the reward.
+         |          | Location: server/index.js L265-277
+---------|----------|----------------------------------------------------------
+RT-02    | MAJOR    | Aggressive polling will overload server. Each team
+         |          | client fires 3 HTTP requests every 2 seconds
+         |          | (leaderboard, event-config, team-progress) + 1 every
+         |          | 5 seconds (announcements).
+         |          | With 20 teams: ~35 req/sec sustained.
+         |          | With 50 teams: ~85 req/sec sustained.
+         |          | Location: GameContext.jsx L120-145
+---------|----------|----------------------------------------------------------
+RT-03    | MAJOR    | Simultaneous heists on same target not prevented.
+         |          | No mutex or "already being heisted" check. See L3-04.
+         |          | Location: server/index.js L310
+
+================================================================================
+  8. UI/UX & THEME CONSISTENCY
+================================================================================
+
+--- Passed Checks ---
+
+- Dark theme consistency: CSS variables + Tailwind config aligned.
+- Font loading: Google Fonts CDN (Orbitron, JetBrains Mono, Abril Fatface,
+  Space Grotesk).
+- Animations: framer-motion, non-blocking.
+- Sound mute toggle: isMuted state respected.
+
+--- Failed Checks / Bugs ---
+
+ID       | Severity | Finding
+---------|----------|----------------------------------------------------------
+UX-01    | MINOR    | Loading animation broken. .loading-dots::after has
+         |          | content: ''; animation: none; so "Authenticating..."
+         |          | and "Verifying..." show no dots animation.
+---------|----------|----------------------------------------------------------
+UX-02    | MINOR    | CSS sound variables may not resolve correctly.
+         |          | getComputedStyle returns URL as raw string without
+         |          | quotes. new Audio(url) should handle it, but browser
+         |          | behavior varies.
+---------|----------|----------------------------------------------------------
+UX-03    | MINOR    | Footer shows "2024" instead of 2026.
+         |          | Location: LandingPage.jsx L224
+
+================================================================================
+  9. PERFORMANCE & STABILITY
+================================================================================
+
+ID       | Severity | Finding
+---------|----------|----------------------------------------------------------
+PERF-01  | CRITICAL | No data persistence (in-memory only). A server crash,
+         |          | restart, or OOM event during the 3-4 hour event
+         |          | destroys ALL game state with no recovery.
+---------|----------|----------------------------------------------------------
+PERF-02  | MAJOR    | Background tab timer drift. Browsers throttle
+         |          | setInterval in background tabs to 1s minimum (Chrome)
+         |          | or pause entirely. Heist timers will drift or freeze
+         |          | if the tab loses focus.
+---------|----------|----------------------------------------------------------
+PERF-03  | MAJOR    | No error recovery. If the server goes down briefly,
+         |          | all clients keep polling and failing silently. No
+         |          | reconnection UI, no "connection lost" indicator.
+---------|----------|----------------------------------------------------------
+PERF-04  | MINOR    | Server nodemon is dev dependency only. Production runs
+         |          | with plain node - no process manager (pm2, etc.) for
+         |          | crash recovery.
+
+================================================================================
+  10. SECURITY & ANTI-CHEAT AUDIT
+================================================================================
+
+--- Critical Vulnerabilities ---
+
+ID       | Severity | Finding                        | Attack Vector
+---------|----------|--------------------------------|---------------------------
+SEC-01   | CRITICAL | Client-side heist timer.       | Open DevTools ->
+         |          |                                | clearInterval() on timer
+         |          |                                | -> unlimited time to
+         |          |                                | answer.
+---------|----------|--------------------------------|---------------------------
+SEC-02   | CRITICAL | Unauthenticated leaderboard.   | curl localhost:3001/api/
+         |          | /api/leaderboard has no auth.   | leaderboard -> reveals
+         |          |                                | all team names, cash,
+         |          |                                | statuses.
+---------|----------|--------------------------------|---------------------------
+SEC-03   | CRITICAL | Socket.IO room spoofing.       | Connect to socket ->
+         |          |                                | emit joinAdminRoom ->
+         |          |                                | receive all admin events
+         |          |                                | including team data.
+---------|----------|--------------------------------|---------------------------
+SEC-04   | CRITICAL | Answer replay / double-submit  | Send two simultaneous
+         |          | race condition.                | POST requests for same
+         |          |                                | challenge -> both may
+         |          |                                | pass -> double reward.
+---------|----------|--------------------------------|---------------------------
+SEC-05   | MAJOR    | No input sanitization on       | Currently safe due to
+         |          | announcements. Admin message    | React JSX auto-escaping.
+         |          | stored and broadcast raw.       | Risk if rendering changes.
+---------|----------|--------------------------------|---------------------------
+SEC-06   | MAJOR    | Heist answers too loose.       | .includes() matching
+         |          |                                | allows padded answers.
+---------|----------|--------------------------------|---------------------------
+SEC-07   | MAJOR    | No CORS restriction for prod.  | Origin hardcoded to
+         |          |                                | localhost:5173.
+---------|----------|--------------------------------|---------------------------
+SEC-08   | MINOR    | No HTTPS. All traffic including | JWT tokens sent in
+         |          | tokens sent in plaintext.       | plaintext over network.
+
+================================================================================
+  11. RESPONSIVENESS & CROSS-PLATFORM
+================================================================================
+
+[PASS]    Desktop layout.
+[PASS]    Tablet layout (md: breakpoints handle well).
+[PARTIAL] Mobile layout (admin table handled, some elements tight).
+[PASS]    Cross-browser (standard React + CSS, no browser-specific APIs).
+
+ID       | Severity | Finding
+---------|----------|----------------------------------------------------------
+RESP-01  | MINOR    | Admin panel tabs wrap awkwardly on small screens.
+         |          | flex-wrap gap-2 causes stacking without clear visual
+         |          | hierarchy.
+
+================================================================================
+  12. FINAL AUDIT REPORT
+================================================================================
+
+--- Summary by Severity ---
+
+  CRITICAL:  11
+  MAJOR:     15
+  MINOR:     11
+  TOTAL:     37
+
+--- Critical Issues (Must Fix Before Event) ---
+
+ 1. PERF-01  - No data persistence. Server restart = total loss.
+ 2. SEC-01   - Heist timer client-only. Trivially bypassed.
+    L3-01      (Same issue, different ID)
+ 3. L3-02   - Safe answer .includes() matching far too loose.
+ 4. L3-03   - Safe cracking validates wrong question (always safe[0]).
+ 5. RT-01   - Double-submit race condition on challenges.
+    SEC-04     (Same issue, different ID)
+ 6. AUTH-01  - Admin password visible on login page.
+    AUTH-02  - Team codes visible on login page.
+ 7. AUTH-03  - Hardcoded JWT secret default.
+    AUTH-04  - Hardcoded admin password default.
+ 8. L4-01   - Level 4 submissions not sent to server.
+ 9. SEC-03  - Socket.IO rooms joinable without authentication.
+10. SEC-02  - Leaderboard endpoint unauthenticated.
+11. L3-04   - Concurrent heists on same target, no locking.
+    RT-03      (Same issue, different ID)
+
+--- Risk Assessment for Live Event ---
+
+Risk                  | Rating  | Justification
+----------------------|---------|----------------------------------------------
+Data Loss             | EXTREME | In-memory storage only. Single crash loses
+                      |         | everything.
+Cash Manipulation     | HIGH    | Race conditions allow double rewards. Client
+                      |         | timer bypass allows unlimited heist time.
+Fairness              | HIGH    | Loose answer matching, no track enforcement
+                      |         | in L2, non-functional power-ups create
+                      |         | imbalanced play.
+Information Leakage   | HIGH    | Unauthenticated leaderboard, cross-team
+                      |         | data access, socket room spoofing.
+UX Disruption         | MEDIUM  | Timer drift in background tabs, no
+                      |         | connection-lost indicators, aggressive
+                      |         | polling.
+
+================================================================================
+  GO / NO-GO RECOMMENDATION
+================================================================================
+
+                          *** NO-GO ***
+
+The platform in its current state is NOT suitable for a live competitive
+event. The combination of:
+
+  (a) zero data persistence,
+  (b) trivially exploitable anti-cheat gaps,
+  (c) race conditions on cash-affecting operations, and
+  (d) hardcoded credentials exposed in the UI
+
+makes this a high-risk deployment.
+
+--- Minimum Fixes Required for GO ---
+
+ 1. Add database persistence (SQLite/PostgreSQL) or at minimum periodic
+    state snapshots to disk.
+ 2. Add server-side heist timer validation.
+ 3. Fix safe answer matching (=== instead of .includes()).
+ 4. Fix safe question validation (store which question was assigned per
+    heist).
+ 5. Add mutex/locking on challenge submissions and heist operations.
+ 6. Remove demo passwords and test code hints from login pages.
+ 7. Set strong JWT_SECRET and ADMIN_PASSWORD via environment variables.
+ 8. Authenticate Socket.IO connections using JWT.
+ 9. Add auth to leaderboard endpoint (or accept it's public - deliberate
+    decision).
+10. Send Level 4 submissions to server.
+11. Add server-side heist timeout cleanup (background job).
+12. Add ownership check on /api/team/:teamId.
+
+================================================================================
+  END OF AUDIT REPORT
+================================================================================

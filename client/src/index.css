@@ -1,0 +1,546 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Abril+Fatface&family=Orbitron:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #050505;
+  --surface: #0C0C0C;
+  --surface-2: #141414;
+  --border: #1A1A1A;
+  --border-strong: #2A2A2A;
+  --text: #FFFFFF;
+  --text-muted: #666666;
+  --accent-green: #00FF9C;
+  --accent-yellow: #D4AF37;
+  --accent-orange: #FF6B35;
+  --accent-pink: #FF6B9D;
+  --accent-cyan: #22d3ee;
+  --accent-purple: #7B3FE4;
+  --accent-red: #FF3B3B;
+
+  --sfx-click: https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3;
+  --sfx-success: https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3;
+  --sfx-error: https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3;
+  --sfx-cash: https://assets.mixkit.co/active_storage/sfx/888/888-preview.mp3;
+  --sfx-alert: https://assets.mixkit.co/active_storage/sfx/1005/1005-preview.mp3;
+  --sfx-heist: https://assets.mixkit.co/active_storage/sfx/209/209-preview.mp3;
+  --sfx-powerup: https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3;
+  --sfx-levelUp: https://assets.mixkit.co/active_storage/sfx/1997/1997-preview.mp3;
+  --sfx-countdown: https://assets.mixkit.co/active_storage/sfx/1057/1057-preview.mp3;
+  --sfx-victory: https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3;
+  --sfx-defeat: https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  min-height: 100vh;
+  color: var(--text);
+  font-family: 'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow-x: hidden;
+}
+
+a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Custom scrollbar - GTA themed */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent-green);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #33FFB3;
+}
+
+/* Film grain overlay */
+.film-grain::before {
+  content: '';
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  right: -50%;
+  bottom: -50%;
+  width: 200%;
+  height: 200%;
+  background: transparent url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E") repeat;
+  animation: grain 8s steps(10) infinite;
+  pointer-events: none;
+  z-index: 9998;
+  opacity: 0.5;
+}
+
+/* Neon text effects - GTA Green */
+.neon-text {
+  text-shadow: 0 0 7px rgba(0,255,156,0.7), 0 0 10px rgba(0,255,156,0.5), 0 0 21px rgba(0,255,156,0.3), 0 0 42px rgba(0,255,156,0.15);
+}
+
+.neon-text-subtle {
+  text-shadow: 0 0 10px rgba(0,255,156,0.4), 0 0 20px rgba(0,255,156,0.2);
+}
+
+.neon-text-yellow {
+  text-shadow: 0 0 7px rgba(212,175,55,0.7), 0 0 10px rgba(212,175,55,0.5), 0 0 21px rgba(212,175,55,0.3);
+}
+
+/* Glowing borders */
+.neon-border {
+  box-shadow: 0 0 5px rgba(0,255,156,0.3), 0 0 20px rgba(0,255,156,0.1), inset 0 0 5px rgba(0,255,156,0.05);
+}
+
+.neon-border-strong {
+  box-shadow: 0 0 10px rgba(0,255,156,0.5), 0 0 30px rgba(0,255,156,0.2), inset 0 0 10px rgba(0,255,156,0.1);
+}
+
+/* GTA-style card - Mission File */
+.gta-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+  color: var(--text);
+  transition: all 0.3s ease;
+}
+
+.gta-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent-green), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.gta-card:hover::before {
+  opacity: 1;
+}
+
+.gta-card:hover {
+  border-color: var(--accent-green);
+  box-shadow: 0 0 15px rgba(0,255,156,0.1), 0 4px 20px rgba(0,0,0,0.5);
+  transform: translateY(-2px);
+}
+
+/* Mission label for cards */
+.mission-label {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-family: 'Oswald', 'Impact', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--accent-yellow);
+  background: rgba(212,175,55,0.1);
+  border: 1px solid rgba(212,175,55,0.3);
+  padding: 2px 8px;
+  border-radius: 2px;
+}
+
+/* Scanline effect */
+.scanlines::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+  pointer-events: none;
+}
+
+/* Glitch effect */
+.glitch {
+  position: relative;
+}
+
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.glitch::before {
+  color: #00FF9C;
+  z-index: -1;
+  animation: glitch-1 0.3s infinite linear alternate-reverse;
+}
+
+.glitch::after {
+  color: #007A4A;
+  z-index: -2;
+  animation: glitch-2 0.3s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-1 {
+  0% { clip-path: inset(20% 0 60% 0); transform: translate(-2px); }
+  20% { clip-path: inset(50% 0 20% 0); transform: translate(2px); }
+  40% { clip-path: inset(10% 0 70% 0); transform: translate(-1px); }
+  60% { clip-path: inset(40% 0 40% 0); transform: translate(1px); }
+  80% { clip-path: inset(80% 0 5% 0); transform: translate(-2px); }
+  100% { clip-path: inset(5% 0 80% 0); transform: translate(2px); }
+}
+
+@keyframes glitch-2 {
+  0% { clip-path: inset(60% 0 20% 0); transform: translate(2px); }
+  20% { clip-path: inset(20% 0 50% 0); transform: translate(-2px); }
+  40% { clip-path: inset(70% 0 10% 0); transform: translate(1px); }
+  60% { clip-path: inset(30% 0 50% 0); transform: translate(-1px); }
+  80% { clip-path: inset(5% 0 80% 0); transform: translate(2px); }
+  100% { clip-path: inset(80% 0 5% 0); transform: translate(-2px); }
+}
+
+/* GTA Button styles */
+.gta-button {
+  background: linear-gradient(180deg, #2a2a2a 0%, #1C1C1C 100%);
+  border: 2px solid var(--accent-green);
+  color: #fff;
+  padding: 12px 24px;
+  font-family: 'Oswald', 'Impact', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
+  border-radius: 3px;
+}
+
+.gta-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0,255,156,0.15), transparent);
+  transition: left 0.4s ease;
+}
+
+.gta-button:hover::before {
+  left: 100%;
+}
+
+.gta-button:hover {
+  background: linear-gradient(180deg, #333333 0%, #252525 100%);
+  border-color: var(--accent-green);
+  box-shadow: 0 0 20px rgba(0,255,156,0.4), 0 0 40px rgba(0,255,156,0.1);
+  transform: scale(1.03);
+  color: var(--accent-green);
+}
+
+.gta-button:active {
+  transform: scale(0.97);
+  box-shadow: 0 0 10px rgba(0,255,156,0.3);
+}
+
+.gta-button-danger {
+  border-color: var(--accent-red);
+}
+
+.gta-button-danger:hover {
+  border-color: var(--accent-red);
+  box-shadow: 0 0 20px rgba(255,59,59,0.4), 0 0 40px rgba(255,59,59,0.1);
+  color: var(--accent-red);
+}
+
+.gta-button-success {
+  border-color: var(--accent-green);
+}
+
+.gta-button-success:hover {
+  border-color: var(--accent-green);
+  box-shadow: 0 0 20px rgba(0,255,156,0.4), 0 0 40px rgba(0,255,156,0.1);
+  color: var(--accent-green);
+}
+
+/* Input styles */
+.gta-input {
+  background: #111111;
+  border: 2px solid var(--border);
+  color: #fff;
+  padding: 12px 16px;
+  font-family: 'Oswald', 'Impact', sans-serif;
+  font-size: 14px;
+  letter-spacing: 1px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  border-radius: 3px;
+}
+
+.gta-input:focus {
+  outline: none;
+  border-color: var(--accent-green);
+  box-shadow: 0 0 15px rgba(0,255,156,0.2);
+}
+
+.gta-input::placeholder {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+/* Cash display */
+.cash-display {
+  font-family: 'Orbitron', monospace;
+  font-weight: 700;
+  color: var(--accent-green);
+  text-shadow: 0 0 10px rgba(0,255,156,0.4);
+}
+
+/* Timer display */
+.timer-display {
+  font-family: 'Orbitron', monospace;
+  font-weight: 700;
+  color: var(--accent-yellow);
+  text-shadow: 0 0 10px rgba(212,175,55,0.4);
+}
+
+.timer-warning {
+  animation: pulse 0.8s ease-in-out infinite;
+  color: var(--accent-red) !important;
+  text-shadow: 0 0 15px rgba(255,59,59,0.5) !important;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Level badge - GTA style */
+.level-badge {
+  background: rgba(0,255,156,0.1);
+  border: 1px solid rgba(0,255,156,0.3);
+  padding: 4px 16px;
+  border-radius: 2px;
+  font-family: 'Oswald', 'Impact', sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: var(--accent-green);
+}
+
+/* Power-up card */
+.powerup-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.powerup-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent-yellow), var(--accent-green));
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.powerup-card:hover {
+  border-color: var(--accent-yellow);
+  box-shadow: 0 0 15px rgba(212,175,55,0.15);
+  transform: translateY(-2px);
+}
+
+.powerup-card:hover::after {
+  opacity: 1;
+}
+
+/* Leaderboard styles */
+.leaderboard-row {
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+}
+
+.leaderboard-row:hover {
+  background: rgba(0,255,156,0.05);
+  border-left-color: var(--accent-green);
+}
+
+.leaderboard-rank-1 {
+  background: rgba(212,175,55,0.08);
+  border-left: 3px solid var(--accent-yellow);
+}
+
+.leaderboard-rank-2 {
+  background: rgba(192,192,192,0.08);
+  border-left: 3px solid #C0C0C0;
+}
+
+.leaderboard-rank-3 {
+  background: rgba(205,127,50,0.08);
+  border-left: 3px solid #CD7F32;
+}
+
+/* Grid background */
+.grid-bg {
+  background-image: linear-gradient(rgba(0,255,156,0.04) 1px, transparent 1px),
+                     linear-gradient(90deg, rgba(0,255,156,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Animations */
+.fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Heist alert */
+.heist-alert {
+  animation: heistPulse 1.2s ease-in-out infinite;
+  border-color: var(--accent-red);
+}
+
+@keyframes heistPulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(255,59,59,0.2); }
+  50% { box-shadow: 0 0 30px rgba(255,59,59,0.5), 0 0 60px rgba(255,59,59,0.2); }
+}
+
+/* Sunset gradient overlay */
+.sunset-overlay {
+  background: linear-gradient(
+    180deg,
+    rgba(0,255,156,0.08) 0%,
+    rgba(0,200,120,0.05) 20%,
+    rgba(0,120,70,0.03) 35%,
+    rgba(10,26,18,0.5) 55%,
+    rgba(5,5,5,0.9) 75%,
+    rgba(2,2,2,1) 100%
+  );
+}
+
+/* Animated gradient background */
+.animated-gradient {
+  background: linear-gradient(
+    -45deg,
+    #050505, #0A1A12, #0C0C0C, #061A0F, #0C0C0C, #050505
+  );
+  background-size: 400% 400%;
+  animation: gradientX 15s ease infinite;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .gta-button {
+    padding: 10px 16px;
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  
+  .gta-input {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Loading animation - UX-01 */
+.loading-dots::after {
+  content: '...';
+  animation: loadingDots 1.5s steps(4, end) infinite;
+}
+
+@keyframes loadingDots {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
+  100% { content: ''; }
+}
+
+/* GTA Section divider */
+.gta-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-green), transparent);
+  opacity: 0.3;
+}
+
+/* Ripple click effect */
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, rgba(0,255,156,0.3) 10%, transparent 10.01%);
+  background-repeat: no-repeat;
+  background-position: 50%;
+  transform: scale(10, 10);
+  opacity: 0;
+  transition: transform .5s, opacity 1s;
+}
+
+.ripple:active::after {
+  transform: scale(0, 0);
+  opacity: 0.3;
+  transition: 0s;
+}

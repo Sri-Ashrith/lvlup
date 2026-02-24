@@ -1,0 +1,265 @@
+{
+  "teams": {
+    "7840e598-bb7b-4362-a578-2382ed04d126": {
+      "id": "7840e598-bb7b-4362-a578-2382ed04d126",
+      "name": "Cyber Wolves",
+      "accessCode": "TEAM001",
+      "cash": 500,
+      "currentLevel": 3,
+      "completedChallenges": [],
+      "powerUps": [],
+      "heistStatus": "none",
+      "isOnline": true,
+      "lastActive": "2026-02-24T05:20:28.631Z"
+    },
+    "ac42a50d-6f19-42a2-9aa2-30fd84fbf92c": {
+      "id": "ac42a50d-6f19-42a2-9aa2-30fd84fbf92c",
+      "name": "Digital Pirates",
+      "accessCode": "TEAM002",
+      "cash": 0,
+      "currentLevel": 3,
+      "completedChallenges": [],
+      "powerUps": [],
+      "heistStatus": "none",
+      "isOnline": true,
+      "lastActive": "2026-02-24T05:22:29.044Z"
+    },
+    "b652685d-abcd-4b2f-9a80-9590a857765d": {
+      "id": "b652685d-abcd-4b2f-9a80-9590a857765d",
+      "name": "Neon Raiders",
+      "accessCode": "TEAM003",
+      "cash": 0,
+      "currentLevel": 3,
+      "completedChallenges": [],
+      "powerUps": [],
+      "heistStatus": "none",
+      "isOnline": false,
+      "lastActive": "2026-02-16T11:07:49.113Z"
+    },
+    "14c442d4-694e-4f63-9e44-e477f7e779fe": {
+      "id": "14c442d4-694e-4f63-9e44-e477f7e779fe",
+      "name": "Shadow Coders",
+      "accessCode": "TEAM004",
+      "cash": 0,
+      "currentLevel": 3,
+      "completedChallenges": [],
+      "powerUps": [],
+      "heistStatus": "none",
+      "isOnline": false,
+      "lastActive": "2026-02-16T11:07:49.113Z"
+    },
+    "28b973a2-b2e0-4d18-ade8-de31fefcaa2d": {
+      "id": "28b973a2-b2e0-4d18-ade8-de31fefcaa2d",
+      "name": "Quantum Thieves",
+      "accessCode": "TEAM005",
+      "cash": 0,
+      "currentLevel": 3,
+      "completedChallenges": [],
+      "powerUps": [],
+      "heistStatus": "none",
+      "isOnline": false,
+      "lastActive": "2026-02-16T11:07:49.113Z"
+    },
+    "fc1c5e4a-5faa-49e2-8104-8f41bc0cad71": {
+      "id": "fc1c5e4a-5faa-49e2-8104-8f41bc0cad71",
+      "name": "thanush",
+      "accessCode": "GDG-23A9ZS",
+      "cash": 0,
+      "currentLevel": 3,
+      "completedChallenges": [],
+      "powerUps": [],
+      "heistStatus": "none",
+      "isOnline": false,
+      "lastActive": "2026-02-20T04:49:12.990Z"
+    }
+  },
+  "powerUps": {
+    "7840e598-bb7b-4362-a578-2382ed04d126": [],
+    "ac42a50d-6f19-42a2-9aa2-30fd84fbf92c": [],
+    "b652685d-abcd-4b2f-9a80-9590a857765d": [],
+    "14c442d4-694e-4f63-9e44-e477f7e779fe": [],
+    "28b973a2-b2e0-4d18-ade8-de31fefcaa2d": [],
+    "fc1c5e4a-5faa-49e2-8104-8f41bc0cad71": []
+  },
+  "levelProgress": {
+    "7840e598-bb7b-4362-a578-2382ed04d126": {
+      "level1": {
+        "logic": [
+          "l1_1"
+        ],
+        "ai": [],
+        "tech": []
+      },
+      "level2": {
+        "brain": [],
+        "nocode": [],
+        "prompt": [],
+        "attempted": false
+      },
+      "level3": {
+        "compound": [],
+        "heistTarget": null,
+        "heistStatus": "none"
+      },
+      "level4": {
+        "submitted": false,
+        "score": 0
+      }
+    },
+    "ac42a50d-6f19-42a2-9aa2-30fd84fbf92c": {
+      "level1": {
+        "logic": [],
+        "ai": [],
+        "tech": []
+      },
+      "level2": {
+        "brain": [],
+        "nocode": [],
+        "prompt": [],
+        "attempted": false
+      },
+      "level3": {
+        "compound": [],
+        "heistTarget": null,
+        "heistStatus": "none"
+      },
+      "level4": {
+        "submitted": false,
+        "score": 0
+      }
+    },
+    "b652685d-abcd-4b2f-9a80-9590a857765d": {
+      "level1": {
+        "logic": [],
+        "ai": [],
+        "tech": []
+      },
+      "level2": {
+        "brain": [],
+        "nocode": [],
+        "prompt": [],
+        "attempted": false
+      },
+      "level3": {
+        "compound": [],
+        "heistTarget": null,
+        "heistStatus": "none"
+      },
+      "level4": {
+        "submitted": false,
+        "score": 0
+      }
+    },
+    "14c442d4-694e-4f63-9e44-e477f7e779fe": {
+      "level1": {
+        "logic": [],
+        "ai": [],
+        "tech": []
+      },
+      "level2": {
+        "brain": [],
+        "nocode": [],
+        "prompt": [],
+        "attempted": false
+      },
+      "level3": {
+        "compound": [],
+        "heistTarget": null,
+        "heistStatus": "none"
+      },
+      "level4": {
+        "submitted": false,
+        "score": 0
+      }
+    },
+    "28b973a2-b2e0-4d18-ade8-de31fefcaa2d": {
+      "level1": {
+        "logic": [],
+        "ai": [],
+        "tech": []
+      },
+      "level2": {
+        "brain": [],
+        "nocode": [],
+        "prompt": [],
+        "attempted": false
+      },
+      "level3": {
+        "compound": [],
+        "heistTarget": null,
+        "heistStatus": "none"
+      },
+      "level4": {
+        "submitted": false,
+        "score": 0
+      }
+    },
+    "fc1c5e4a-5faa-49e2-8104-8f41bc0cad71": {
+      "level1": {
+        "logic": [],
+        "ai": [],
+        "tech": []
+      },
+      "level2": {
+        "brain": [],
+        "nocode": [],
+        "prompt": [],
+        "attempted": false
+      },
+      "level3": {
+        "compound": [],
+        "heistTarget": null,
+        "heistStatus": "none"
+      },
+      "level4": {
+        "submitted": false,
+        "score": 0
+      }
+    }
+  },
+  "eventConfig": {
+    "currentLevel": 3,
+    "isEventActive": true,
+    "levelTimers": {
+      "1": 2700,
+      "2": 3600,
+      "3": 2700,
+      "4": 1800
+    },
+    "heistTimeLimit": 180,
+    "difficultyMultiplier": 1
+  },
+  "announcements": [
+    {
+      "id": "2ab914c9-eb82-4281-96e6-adc39eef96bf",
+      "message": "Hello",
+      "type": "info",
+      "timestamp": "2026-02-20T04:53:24.543Z"
+    },
+    {
+      "id": "1a257ade-dff0-4b8b-a635-3bdae53b3647",
+      "message": "Check out your 4th level",
+      "type": "info",
+      "timestamp": "2026-02-20T04:53:38.907Z"
+    },
+    {
+      "id": "c29498ff-15aa-4de4-8385-6bbfa7df5ec3",
+      "message": "nigga",
+      "type": "info",
+      "timestamp": "2026-02-20T04:54:30.421Z"
+    },
+    {
+      "id": "7b19a2a2-142d-4a27-b40e-eeb4bcb16f35",
+      "message": "Heya! Let's see who is the Criminal Mastermind",
+      "type": "info",
+      "timestamp": "2026-02-23T07:32:56.032Z"
+    },
+    {
+      "id": "4529dc0a-12a7-44c0-a722-54c239a1bc92",
+      "message": "Heya",
+      "type": "info",
+      "timestamp": "2026-02-23T14:56:00.718Z"
+    }
+  ],
+  "savedAt": "2026-02-24T08:19:21.521Z"
+}
