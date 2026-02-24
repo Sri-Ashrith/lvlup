@@ -4,7 +4,7 @@
   "description": "GTA-inspired gamified hackathon platform",
   "type": "module",
   "engines": {
-    "node": "18.x"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
