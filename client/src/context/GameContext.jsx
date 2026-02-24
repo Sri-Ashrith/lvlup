@@ -4,7 +4,10 @@ import { useAuth } from './AuthContext';
 
 const GameContext = createContext(null);
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin)
+).replace(/\/$/, '');
 const API_URL = `${API_BASE_URL}/api`;
 
 export function GameProvider({ children }) {
