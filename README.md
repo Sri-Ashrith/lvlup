@@ -133,6 +133,19 @@ ADMIN_PASSWORD=your-admin-password
 PORT=3001
 ```
 
+### Database Setup (PostgreSQL)
+
+This project currently runs with in-memory + JSON backup state, but production database schema is included.
+
+- Schema: `server/db/schema.sql`
+- Migration order: `server/db/MIGRATION_ORDER.md`
+
+Apply schema:
+
+```bash
+psql -U postgres -d chakravyuh_event -f server/db/schema.sql
+```
+
 ### Customizing Challenges
 
 Edit the `challenges` object in `server/index.js` to add/modify questions:

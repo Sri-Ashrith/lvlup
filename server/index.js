@@ -9,6 +9,7 @@ import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { supabase } from './supabaseClient.js';
 
 dotenv.config();
 
@@ -26,6 +27,19 @@ const io = new Server(server, {
 
 app.use(cors({ origin: ALLOWED_ORIGIN }));
 app.use(express.json());
+
+app.get('/api/db-ping', async (req, res) => {
+  const { data, error } = await supabase.from('event_config').select('*').limit(1);
+  if (error) {
+    return res.status(500).json({
+      ok: false,
+      error: error.message,
+      code: error.code || error.cause?.code || null,
+      cause: error.cause?.message || null
+    });
+  }
+  res.json({ ok: true, data });
+});
 
 // AUTH-03/04: Warn loudly if using fallback secrets
 const JWT_SECRET = process.env.JWT_SECRET || 'level-up-event-secret-2026';
