@@ -119,23 +119,6 @@ export default function HeroSection() {
           style={{ background: 'linear-gradient(90deg, transparent, #00FF9C, transparent)' }}
         />
 
-        {/* Logo */}
-        <motion.div
-          initial={{ scale: 0.6, opacity: 0, filter: 'blur(20px)' }}
-          animate={{ scale: 1, opacity: 1, filter: 'blur(0px)' }}
-          transition={{ duration: 0.9, delay: 0.4, ease: 'easeOut' }}
-          className="mb-4"
-        >
-          <img
-            src="/Logo.png"
-            alt="LEVEL UP"
-            className="w-[260px] md:w-[380px] lg:w-[480px] mx-auto"
-            style={{
-              filter: 'drop-shadow(0 0 40px rgba(0,255,156,0.25)) drop-shadow(0 4px 0 rgba(0,0,0,0.9))',
-            }}
-          />
-        </motion.div>
-
         {/* 3D LEVEL UP heading */}
         <motion.h1
           initial={{ opacity: 0, y: 40, rotateX: 20 }}

@@ -83,14 +83,6 @@ export default function TeamDashboard() {
       color: 'from-red-500 to-pink-600',
       unlocked: eventConfig.currentLevel >= 3
     },
-    { 
-      id: 4, 
-      name: 'Grand Showdown', 
-      subtitle: 'Final battle',
-      icon: <Trophy className="w-8 h-8" />,
-      color: 'from-yellow-500 to-orange-600',
-      unlocked: eventConfig.currentLevel >= 4
-    },
   ];
 
   const teamRank = leaderboard.findIndex(t => t.id === team?.id) + 1;

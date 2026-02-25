@@ -9,7 +9,6 @@ import AdminPanel from './pages/AdminPanel';
 import Level1Arena from './pages/levels/Level1Arena';
 import Level2Skills from './pages/levels/Level2Skills';
 import Level3Heist from './pages/levels/Level3Heist';
-import Level4Showdown from './pages/levels/Level4Showdown';
 import Leaderboard from './pages/Leaderboard';
 import BackgroundEffects from './components/BackgroundEffects';
 import GTALoadingScreen from './components/GTALoadingScreen';
@@ -96,14 +95,6 @@ function App() {
               element={
                 <ProtectedRoute requiredRole="team">
                   <Level3Heist />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/level/4" 
-              element={
-                <ProtectedRoute requiredRole="team">
-                  <Level4Showdown />
                 </ProtectedRoute>
               } 
             />

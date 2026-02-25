@@ -197,23 +197,6 @@ export default function AdminPanel() {
     setIsLoading(false);
   };
 
-  const handleScorePresentation = async (teamId, scores) => {
-    playSound('click');
-    setIsLoading(true);
-    
-    try {
-      await axios.post(`${API_URL}/admin/score-presentation`, { teamId, scores }, authConfig);
-      playSound('success');
-      await loadEventState();
-      fetchLeaderboard();
-    } catch (error) {
-      playSound('error');
-      console.error('Failed to score presentation:', error);
-    }
-    
-    setIsLoading(false);
-  };
-
   const selectedTeamPowerUps = selectedTeam
     ? (eventState?.teams?.find(t => t.id === selectedTeam.id)?.powerUps || [])
     : [];
@@ -313,7 +296,7 @@ export default function AdminPanel() {
 
         {/* Tabs - RESP-01: scrollable on mobile */}
         <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-thin">
-          {['dashboard', 'teams', 'controls', 'scoring'].map((tab) => (
+          {['dashboard', 'teams', 'controls'].map((tab) => (
             <button
               key={tab}
               onClick={() => { playSound('click'); setActiveTab(tab); }}
@@ -628,106 +611,10 @@ export default function AdminPanel() {
             </motion.div>
           )}
 
-          {/* Scoring Tab */}
-          {activeTab === 'scoring' && (
-            <motion.div
-              key="scoring"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-            >
-              <div className="gta-card p-6">
-                <h2 className="text-xl font-gta-heading text-white mb-4 flex items-center gap-2">
-                  <Star className="w-5 h-5 text-gta-yellow" />
-                  Presentation Scoring
-                </h2>
-                <p className="text-gray-400 font-mono text-sm mb-6">
-                  Score team presentations for the Grand Showdown. Each criterion is worth up to 25 points.
-                </p>
-                
-                <div className="space-y-4">
-                  {teams.map((team) => (
-                    <PresentationScorer 
-                      key={team.id}
-                      team={team}
-                      onScore={(scores) => handleScorePresentation(team.id, scores)}
-                      isLoading={isLoading}
-                    />
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
+
         </AnimatePresence>
       </main>
     </div>
   );
 }
 
-function PresentationScorer({ team, onScore, isLoading }) {
-  const [scores, setScores] = useState({
-    innovation: 0,
-    feasibility: 0,
-    impact: 0,
-    presentation: 0
-  });
-  const [expanded, setExpanded] = useState(false);
-
-  const criteria = [
-    { key: 'innovation', label: 'Innovation' },
-    { key: 'feasibility', label: 'Technical Feasibility' },
-    { key: 'impact', label: 'Impact' },
-    { key: 'presentation', label: 'Presentation' },
-  ];
-
-  const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
-
-  return (
-    <div className="bg-gta-dark/50 rounded-lg p-4">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between"
-      >
-        <div className="flex items-center gap-3">
-          <div className={`w-2 h-2 rounded-full ${team.isOnline ? 'bg-green-500' : 'bg-gray-500'}`} />
-          <span className="font-gta-heading text-white">{team.name}</span>
-        </div>
-        <Eye className={`w-5 h-5 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-      </button>
-      
-      {expanded && (
-        <div className="mt-4 space-y-4">
-          {criteria.map(({ key, label }) => (
-            <div key={key}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-400 font-mono text-sm">{label}</span>
-                <span className="text-gta-yellow font-gta-heading">{scores[key]}/25</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="25"
-                value={scores[key]}
-                onChange={(e) => setScores({ ...scores, [key]: parseInt(e.target.value) })}
-                className="w-full h-2 bg-gta-dark rounded-lg appearance-none cursor-pointer accent-gta-yellow"
-              />
-            </div>
-          ))}
-          
-          <div className="flex items-center justify-between pt-4 border-t border-gta-green/20">
-            <span className="font-gta-heading text-white">
-              Total: <span className="text-gta-yellow">{totalScore}/100</span>
-            </span>
-            <button
-              onClick={() => onScore(scores)}
-              disabled={isLoading}
-              className="gta-button gta-button-success text-sm disabled:opacity-50"
-            >
-              Submit Score (+${totalScore * 100})
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}

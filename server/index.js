@@ -129,8 +129,7 @@ const gameState = {
     levelTimers: {
       1: 45 * 60, // 45 minutes
       2: 60 * 60, // 60 minutes
-      3: 45 * 60, // 45 minutes
-      4: 30 * 60  // 30 minutes
+      3: 45 * 60  // 45 minutes
     },
     heistTimeLimit: 180, // 3 minutes
     difficultyMultiplier: 1
@@ -220,10 +219,6 @@ const challenges = {
       { id: 's_2', question: 'What is the output of: print(type([]) == list)', answer: 'True', attempts: 3, timeLimit: 120 },
       { id: 's_3', question: 'How do you get the last element of a list named arr?', answer: 'arr[-1]', attempts: 3, timeLimit: 120 }
     ]
-  },
-  level4: {
-    problemStatement: 'Build a creative solution that addresses a real-world problem using technology. You have 30 minutes to prepare your idea and 2 minutes to present.',
-    criteria: ['Innovation', 'Technical Feasibility', 'Impact', 'Presentation']
   }
 };
 
@@ -249,8 +244,7 @@ function initializeSampleTeams() {
     gameState.levelProgress[teamId] = {
       level1: { logic: [], ai: [], tech: [] },
       level2: { brain: [], nocode: [], prompt: [], attempted: false },
-      level3: { compound: [], heistTarget: null, heistStatus: 'none' },
-      level4: { submitted: false, score: 0 }
+      level3: { compound: [], heistTarget: null, heistStatus: 'none' }
     };
   });
 }
@@ -671,30 +665,6 @@ setInterval(() => {
   });
 }, 15000);
 
-// L4-01: Level 4 submission endpoint — stores submission server-side
-app.post('/api/level4/submit', authenticateToken, (req, res) => {
-  const { submission } = req.body;
-  const teamId = req.user.teamId;
-  
-  if (!teamId) return res.status(403).json({ error: 'Team access only' });
-  if (!submission || !submission.trim()) return res.status(400).json({ error: 'Submission cannot be empty' });
-  
-  const team = gameState.teams[teamId];
-  if (!team) return res.status(404).json({ error: 'Team not found' });
-  
-  // Store submission in team's progress
-  team.progress.level4 = {
-    ...(team.progress.level4 || {}),
-    submission: submission.trim(),
-    submittedAt: new Date().toISOString()
-  };
-  
-  io.to('admin').emit('level4Submission', { teamId, teamName: team.name, submittedAt: team.progress.level4.submittedAt });
-  console.log(`[L4-SUBMIT] Team ${team.name} submitted solution`);
-  
-  res.json({ success: true, message: 'Submission recorded' });
-});
-
 // Admin routes
 app.post('/api/admin/add-cash', authenticateToken, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
@@ -798,36 +768,13 @@ app.post('/api/admin/create-team', authenticateToken, (req, res) => {
   gameState.levelProgress[teamId] = {
     level1: { logic: [], ai: [], tech: [] },
     level2: { brain: [], nocode: [], prompt: [], attempted: false },
-    level3: { compound: [], heistTarget: null, heistStatus: 'none' },
-    level4: { submitted: false, score: 0 }
+    level3: { compound: [], heistTarget: null, heistStatus: 'none' }
   };
   
   logAdminAction('create-team', { teamId, teamName: name, accessCode });
   io.emit('leaderboardUpdate', getLeaderboard());
   
   res.json({ success: true, team: gameState.teams[teamId] });
-});
-
-app.post('/api/admin/score-presentation', authenticateToken, (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
-  
-  const { teamId, scores } = req.body;
-  const team = gameState.teams[teamId];
-  
-  if (!team) return res.status(404).json({ error: 'Team not found' });
-  
-  const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
-  const cashReward = totalScore * 100;
-  
-  team.cash += cashReward;
-  gameState.levelProgress[teamId].level4.score = totalScore;
-  gameState.levelProgress[teamId].level4.submitted = true;
-  
-  logAdminAction('score-presentation', { teamId, teamName: team.name, scores, totalScore, cashReward });
-  io.emit('leaderboardUpdate', getLeaderboard());
-  io.to(teamId).emit('presentationScored', { scores, totalScore, cashReward });
-  
-  res.json({ success: true, totalScore, cashReward });
 });
 
 app.get('/api/admin/event-state', authenticateToken, (req, res) => {
