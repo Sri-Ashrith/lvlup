@@ -90,7 +90,9 @@ export function AuthProvider({ children }) {
       if (error.code === 'ECONNABORTED') {
         return { success: false, error: 'Request timed out. Server is unreachable.' };
       }
-      return { success: false, error: error.response?.data?.error || 'Login failed' };
+      const errData = error.response?.data?.error;
+      const errMsg = typeof errData === 'string' ? errData : (errData?.message || error.message || 'Login failed');
+      return { success: false, error: errMsg };
     }
   };
 
@@ -118,7 +120,9 @@ export function AuthProvider({ children }) {
       if (!error.response) {
         return { success: false, error: 'Cannot reach server. Check VITE_API_URL/VITE_ENABLE_SOCKET configuration.' };
       }
-      return { success: false, error: error.response?.data?.error || 'Login failed' };
+      const errData = error.response?.data?.error;
+      const errMsg = typeof errData === 'string' ? errData : (errData?.message || error.message || 'Login failed');
+      return { success: false, error: errMsg };
     }
   };
 
