@@ -71,8 +71,7 @@ export function AuthProvider({ children }) {
     try {
       const response = await axios.post(
         `${API_URL}/auth/team-login`,
-        { accessCode },
-        { timeout: 15000 }
+        { accessCode }
       );
       const { token: newToken, team: teamData, powerUps } = response.data;
       
@@ -99,8 +98,7 @@ export function AuthProvider({ children }) {
     try {
       const response = await axios.post(
         `${API_URL}/auth/admin-login`,
-        { password },
-        { timeout: 15000 }
+        { password }
       );
       const { token: newToken, role } = response.data;
       

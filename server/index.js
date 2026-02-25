@@ -38,15 +38,19 @@ function isAllowedOrigin(origin) {
 
 const app = express();
 const server = createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: (origin, callback) => {
-      if (isAllowedOrigin(origin)) return callback(null, true);
-      return callback(new Error('Not allowed by CORS'));
-    },
-    methods: ["GET", "POST"]
-  }
-});
+
+// Only create real Socket.IO server when NOT on Vercel (serverless can't hold WebSocket connections)
+const io = IS_VERCEL
+  ? { emit() {}, to() { return this; }, on() {}, use() {}, of() { return this; } }
+  : new Server(server, {
+      cors: {
+        origin: (origin, callback) => {
+          if (isAllowedOrigin(origin)) return callback(null, true);
+          return callback(new Error('Not allowed by CORS'));
+        },
+        methods: ["GET", "POST"]
+      }
+    });
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -864,8 +868,8 @@ function checkAndGrantPowerUps(teamId) {
   }
 }
 
-// AUTH-08/SEC-03: Socket.IO authentication middleware
-io.use((socket, next) => {
+// AUTH-08/SEC-03: Socket.IO authentication middleware (skip on Vercel)
+if (!IS_VERCEL) io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
   if (!token) {
     return next(new Error('Authentication required'));
@@ -879,8 +883,8 @@ io.use((socket, next) => {
   }
 });
 
-// Socket.io connection handling
-io.on('connection', (socket) => {
+// Socket.io connection handling (skip on Vercel)
+if (!IS_VERCEL) io.on('connection', (socket) => {
   console.log('Client connected:', socket.id, '| user:', socket.user?.teamId || socket.user?.role);
   
   socket.on('joinTeamRoom', (teamId) => {
@@ -959,8 +963,8 @@ if (!IS_VERCEL) {
   setInterval(autoSaveState, 60000);
 }
 
-// Load saved state on startup if available
-try {
+// Load saved state on startup if available (skip on Vercel — filesystem is read-only)
+if (!IS_VERCEL) try {
   if (fs.existsSync(SAVE_FILE)) {
     const saved = JSON.parse(fs.readFileSync(SAVE_FILE, 'utf-8'));
     if (saved.teams && Object.keys(saved.teams).length > 0) {
