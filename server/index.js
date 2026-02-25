@@ -15,7 +15,11 @@ dotenv.config();
 const IS_VERCEL = process.env.VERCEL === '1';
 
 // SEC-07: CORS configuration — allow configured origins (comma-separated)
-const CLIENT_ORIGIN_RAW = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
+const defaultOrigins = ['http://localhost:5173'];
+if (process.env.VERCEL_URL) {
+  defaultOrigins.push(`https://${process.env.VERCEL_URL}`);
+}
+const CLIENT_ORIGIN_RAW = process.env.CLIENT_ORIGIN || defaultOrigins.join(',');
 const ALLOWED_ORIGINS = CLIENT_ORIGIN_RAW
   .split(',')
   .map(origin => origin.trim())

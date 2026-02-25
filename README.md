@@ -131,11 +131,20 @@ Create a `.env` file in the root directory:
 JWT_SECRET=your-secret-key
 ADMIN_PASSWORD=your-admin-password
 PORT=3001
+CLIENT_ORIGIN=http://localhost:5173
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
-### Database Setup (PostgreSQL)
+For Vercel deployment, set these same variables in the Vercel project settings.
+Keep `VITE_API_URL` empty so the frontend uses same-origin `/api`.
 
-This project currently runs with in-memory + JSON backup state, but production database schema is included.
+### Database Setup (Supabase PostgreSQL)
+
+Use Supabase as the only database provider.
+Production API reads Supabase credentials from Vercel environment variables.
+
+This project still keeps in-memory game state + JSON backup for runtime state, but database schema is included.
 
 - Schema: `server/db/schema.sql`
 - Migration order: `server/db/MIGRATION_ORDER.md`
@@ -145,6 +154,13 @@ Apply schema:
 ```bash
 psql -U postgres -d chakravyuh_event -f server/db/schema.sql
 ```
+
+## ▲ Vercel + Supabase Deployment
+
+1. Import this repo into Vercel.
+2. Set root-level env vars: `JWT_SECRET`, `ADMIN_PASSWORD`, `CLIENT_ORIGIN`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+3. (Optional) Set `VITE_ENABLE_SOCKET=false` for serverless deployment.
+4. Deploy. Frontend and API run from the same Vercel domain (`/api/*`).
 
 ### Customizing Challenges
 

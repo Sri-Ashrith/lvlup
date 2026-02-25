@@ -32,11 +32,11 @@ import {
 } from 'lucide-react';
 import Leaderboard from '../components/Leaderboard';
 
-const API_BASE_URL = (
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin)
-).replace(/\/$/, '');
-const API_URL = `${API_BASE_URL}/api`;
+const configuredApiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const API_BASE_URL = import.meta.env.DEV
+  ? (configuredApiBase || 'http://localhost:3001')
+  : configuredApiBase;
+const API_URL = API_BASE_URL ? `${API_BASE_URL}/api` : '/api';
 
 export default function AdminPanel() {
   const navigate = useNavigate();

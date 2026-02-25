@@ -4,12 +4,15 @@ import { io } from 'socket.io-client';
 
 const AuthContext = createContext(null);
 
-const API_BASE_URL = (
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin)
-).replace(/\/$/, '');
-const API_URL = `${API_BASE_URL}/api`;
+const configuredApiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const API_BASE_URL = import.meta.env.DEV
+  ? (configuredApiBase || 'http://localhost:3001')
+  : configuredApiBase;
+const API_URL = API_BASE_URL ? `${API_BASE_URL}/api` : '/api';
 const SOCKET_URL = (import.meta.env.VITE_SOCKET_URL || API_BASE_URL).replace(/\/$/, '');
+const SOCKET_ENABLED =
+  import.meta.env.VITE_ENABLE_SOCKET === 'true' ||
+  (import.meta.env.DEV && import.meta.env.VITE_ENABLE_SOCKET !== 'false');
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -34,9 +37,9 @@ export function AuthProvider({ children }) {
   }, [token]);
 
   useEffect(() => {
-    if (token && !socket) {
+    if (token && !socket && SOCKET_ENABLED) {
       // AUTH-08: Send JWT token with socket connection for server-side auth
-      const newSocket = io(SOCKET_URL, {
+      const newSocket = io(SOCKET_URL || undefined, {
         auth: { token }
       });
       
@@ -86,7 +89,7 @@ export function AuthProvider({ children }) {
       return { success: true };
     } catch (error) {
       if (error.code === 'ECONNABORTED') {
-        return { success: false, error: 'Request timed out. Backend may be sleeping or unreachable.' };
+        return { success: false, error: 'Request timed out. Server is unreachable.' };
       }
       return { success: false, error: error.response?.data?.error || 'Login failed' };
     }
@@ -112,10 +115,10 @@ export function AuthProvider({ children }) {
       return { success: true };
     } catch (error) {
       if (error.code === 'ECONNABORTED') {
-        return { success: false, error: 'Request timed out. Backend may be sleeping or unreachable.' };
+        return { success: false, error: 'Request timed out. Server is unreachable.' };
       }
       if (!error.response) {
-        return { success: false, error: 'Cannot reach server. Check VITE_API_URL/VITE_SOCKET_URL and backend availability.' };
+        return { success: false, error: 'Cannot reach server. Check VITE_API_URL/VITE_ENABLE_SOCKET configuration.' };
       }
       return { success: false, error: error.response?.data?.error || 'Login failed' };
     }

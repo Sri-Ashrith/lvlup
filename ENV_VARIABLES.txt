@@ -1,21 +1,22 @@
-BACKEND (Render/Railway/Fly) ENV VARIABLES
+VERCEL PROJECT ENV VARIABLES (Frontend + Serverless API)
 
-PORT=3001
-CLIENT_ORIGIN=https://lvup-d9g0wzm4i-sri-ashriths-projects.vercel.app
 JWT_SECRET=replace_with_a_long_random_secret
 ADMIN_PASSWORD=replace_with_admin_password
-SUPABASE_URL=https://cfzqcnwtnymhyvyyesya.supabase.co
+CLIENT_ORIGIN=https://your-vercel-domain.vercel.app
+SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=replace_with_service_role_key
 
 
-FRONTEND (Vercel) ENV VARIABLES
+OPTIONAL CLIENT ENV VARIABLES (set only if needed)
 
-VITE_API_URL=https://your-backend-domain.com
-VITE_SOCKET_URL=https://your-backend-domain.com
+VITE_API_URL=
+VITE_ENABLE_SOCKET=false
+VITE_SOCKET_URL=
 
 
 NOTES
 
-1) In Vercel, set only VITE_API_URL and VITE_SOCKET_URL.
-2) Do NOT put SUPABASE_SERVICE_ROLE_KEY in Vercel frontend env.
-3) Replace https://your-backend-domain.com with your deployed backend URL (example: https://lvup-backend.onrender.com).
+1) Keep VITE_API_URL empty to use same-origin /api on Vercel.
+2) Set VITE_ENABLE_SOCKET=false on Vercel (recommended for serverless runtime).
+3) Do NOT expose SUPABASE_SERVICE_ROLE_KEY in client code.
+4) This setup uses only Vercel (hosting + API) and Supabase (database).
