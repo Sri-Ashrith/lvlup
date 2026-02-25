@@ -9,6 +9,14 @@ BEGIN;
 -- ── 0. Extensions ───────────────────────────────────────────────────────────
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- ── 0.5 Drop existing tables (reverse dependency order) ────────────────────
+DROP TABLE IF EXISTS announcements  CASCADE;
+DROP TABLE IF EXISTS heists         CASCADE;
+DROP TABLE IF EXISTS level_progress CASCADE;
+DROP TABLE IF EXISTS team_powerups  CASCADE;
+DROP TABLE IF EXISTS teams          CASCADE;
+DROP TABLE IF EXISTS event_config   CASCADE;
+
 -- ── 1. Helper: auto-update updated_at ───────────────────────────────────────
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
