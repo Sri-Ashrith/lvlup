@@ -748,13 +748,44 @@ app.post('/api/admin/set-level', authenticateToken, (req, res) => {
   res.json({ success: true, currentLevel: level });
 });
 
+app.post('/api/admin/delete-team', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  
+  const { teamId } = req.body;
+  if (!teamId || !gameState.teams[teamId]) {
+    return res.status(404).json({ error: 'Team not found' });
+  }
+  
+  const teamName = gameState.teams[teamId].name;
+  delete gameState.teams[teamId];
+  delete gameState.powerUps[teamId];
+  delete gameState.levelProgress[teamId];
+  
+  // Remove any active heists involving this team
+  for (const [heistId, heist] of Object.entries(gameState.heists)) {
+    if (heist.attackerId === teamId || heist.targetTeamId === teamId) {
+      delete gameState.heists[heistId];
+    }
+  }
+  
+  logAdminAction('delete-team', { teamId, teamName });
+  io.emit('leaderboardUpdate', getLeaderboard());
+  
+  res.json({ success: true });
+});
+
 app.post('/api/admin/create-team', authenticateToken, (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   
   const { name } = req.body;
   const teamId = uuidv4();
-  // ADM-02: Generate unique random access code instead of predictable TEAM001 pattern
-  const accessCode = 'GDG-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+  // Generate sequential access code TEAM001, TEAM002, etc.
+  const existingCodes = Object.values(gameState.teams)
+    .map(t => t.accessCode)
+    .filter(c => /^TEAM\d{3}$/.test(c))
+    .map(c => parseInt(c.replace('TEAM', ''), 10));
+  const nextNum = existingCodes.length > 0 ? Math.max(...existingCodes) + 1 : 1;
+  const accessCode = 'TEAM' + String(nextNum).padStart(3, '0');
   
   gameState.teams[teamId] = {
     id: teamId,

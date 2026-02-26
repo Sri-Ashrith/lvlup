@@ -158,6 +158,26 @@ export default function AdminPanel() {
     setIsLoading(false);
   };
 
+  const handleDeleteTeam = async (teamId) => {
+    if (!teamId) return;
+    if (!window.confirm('Are you sure you want to delete this team? This cannot be undone.')) return;
+    playSound('click');
+    setIsLoading(true);
+    
+    try {
+      await axios.post(`${API_URL}/admin/delete-team`, { teamId }, authConfig);
+      playSound('success');
+      if (selectedTeam?.id === teamId) setSelectedTeam(null);
+      await loadEventState();
+      fetchLeaderboard();
+    } catch (error) {
+      playSound('error');
+      console.error('Failed to delete team:', error);
+    }
+    
+    setIsLoading(false);
+  };
+
   const handleCreateTeam = async () => {
     if (!newTeamName.trim()) return;
     playSound('click');
@@ -348,8 +368,8 @@ export default function AdminPanel() {
                       Live Unlock
                     </div>
                   </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[1, 2, 3, 4].map((level) => (
+                  <div className="grid grid-cols-3 gap-2">
+                    {[1, 2, 3].map((level) => (
                       <button
                         key={level}
                         onClick={() => handleSetLevel(level)}
@@ -457,12 +477,19 @@ export default function AdminPanel() {
                               {team.isOnline ? 'Online' : 'Offline'}
                             </span>
                           </td>
-                          <td className="py-3">
+                          <td className="py-3 flex gap-2">
                             <button
                               onClick={() => { playSound('click'); setSelectedTeam(team); setActiveTab('controls'); }}
                               className="gta-button text-xs py-1 px-3"
                             >
                               Manage
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTeam(team.id)}
+                              disabled={isLoading}
+                              className="gta-button gta-button-danger text-xs py-1 px-3"
+                            >
+                              Delete
                             </button>
                           </td>
                         </tr>
