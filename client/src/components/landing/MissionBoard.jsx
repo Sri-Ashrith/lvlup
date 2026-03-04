@@ -7,7 +7,7 @@ const MISSIONS = [
     risk: 'Low',
     reward: 1500,
     status: 'Active',
-    description: 'Solve logic, AI detection, and tech-guessing challenges to unlock your first earnings.',
+    description: 'Guess the Logo, AI vs Human detection, and Logical Reasoning — 3 sub-levels to prove your skills.',
   },
   {
     name: 'Skill Arenas',

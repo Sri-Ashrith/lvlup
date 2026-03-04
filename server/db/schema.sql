@@ -124,9 +124,9 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 -- Team progression state (mirrors current in-memory shape)
 CREATE TABLE IF NOT EXISTS team_level_progress (
   team_id UUID PRIMARY KEY REFERENCES teams(id) ON DELETE CASCADE,
-  level1_logic JSONB NOT NULL DEFAULT '[]'::jsonb,
-  level1_ai JSONB NOT NULL DEFAULT '[]'::jsonb,
-  level1_tech JSONB NOT NULL DEFAULT '[]'::jsonb,
+  level1_logo JSONB NOT NULL DEFAULT '[]'::jsonb,
+  level1_aihuman JSONB NOT NULL DEFAULT '[]'::jsonb,
+  level1_reasoning JSONB NOT NULL DEFAULT '[]'::jsonb,
   level2_brain JSONB NOT NULL DEFAULT '[]'::jsonb,
   level2_nocode JSONB NOT NULL DEFAULT '[]'::jsonb,
   level2_prompt JSONB NOT NULL DEFAULT '[]'::jsonb,

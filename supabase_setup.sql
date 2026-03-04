@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS level_progress (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id      UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
   level_key    TEXT NOT NULL,   -- 'level1', 'level2', 'level3'
-  zone         TEXT NOT NULL,   -- 'logic', 'ai', 'tech', 'brain', etc.
+  zone         TEXT NOT NULL,   -- 'logo', 'aihuman', 'reasoning', 'brain', etc.
   challenge_id TEXT NOT NULL,
   completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (team_id, level_key, zone, challenge_id)
