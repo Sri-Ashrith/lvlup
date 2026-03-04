@@ -544,3 +544,149 @@ a:hover {
   opacity: 0.3;
   transition: 0s;
 }
+
+/* ===== HEIST SYSTEM STYLES ===== */
+
+/* Heist HUD panel fixed at bottom */
+.heist-hud-panel {
+  background: linear-gradient(180deg, rgba(10,10,15,0.95) 0%, rgba(10,10,15,0.98) 100%);
+  border-top: 1px solid rgba(0,255,156,0.15);
+  box-shadow: 0 -4px 30px rgba(0,0,0,0.5), 0 -1px 0 rgba(0,255,156,0.1);
+}
+
+/* Heist alert pulse */
+.heist-alert {
+  animation: heistAlertPulse 2s ease-in-out infinite;
+}
+@keyframes heistAlertPulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(255,59,59,0.1); }
+  50% { box-shadow: 0 0 40px rgba(255,59,59,0.3), 0 0 80px rgba(255,59,59,0.1); }
+}
+
+/* Fingerprint scanning line */
+@keyframes scanLine {
+  0% { transform: translateY(0); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(320px); opacity: 0; }
+}
+
+/* Lock pick vibration */
+@keyframes pickVibrate {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+/* Code digit flip animation */
+@keyframes digitFlip {
+  0% { transform: rotateX(0deg); }
+  50% { transform: rotateX(90deg); }
+  100% { transform: rotateX(0deg); }
+}
+.digit-flip {
+  animation: digitFlip 0.4s ease-in-out;
+}
+
+/* Timer urgent pulse */
+@keyframes timerUrgent {
+  0%, 100% { color: #FF3B3B; text-shadow: 0 0 10px rgba(255,59,59,0.5); }
+  50% { color: #ff6b6b; text-shadow: 0 0 20px rgba(255,59,59,0.8); }
+}
+.timer-urgent {
+  animation: timerUrgent 1s ease-in-out infinite;
+}
+
+/* Timer critical flash */
+@keyframes timerCritical {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.timer-critical {
+  animation: timerCritical 0.5s ease-in-out infinite;
+}
+
+/* Money bar shimmer */
+@keyframes moneyShimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.money-bar-shimmer {
+  background-size: 200% 100%;
+  animation: moneyShimmer 3s linear infinite;
+}
+
+/* Target lock overlay */
+@keyframes lockPulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.9; }
+}
+.target-locked-overlay {
+  animation: lockPulse 2s ease-in-out infinite;
+}
+
+/* Compound wrong answer shake */
+@keyframes wrongShake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+.wrong-shake {
+  animation: wrongShake 0.5s ease-in-out;
+}
+
+/* Powerup glow */
+@keyframes powerupGlow {
+  0%, 100% { box-shadow: 0 0 10px rgba(0,255,156,0.2); }
+  50% { box-shadow: 0 0 25px rgba(0,255,156,0.5), 0 0 50px rgba(0,255,156,0.2); }
+}
+.powerup-available {
+  animation: powerupGlow 2s ease-in-out infinite;
+}
+
+/* Safe crack success flash */
+@keyframes safeSuccess {
+  0% { background-color: rgba(0,255,156,0); }
+  50% { background-color: rgba(0,255,156,0.15); }
+  100% { background-color: rgba(0,255,156,0); }
+}
+.safe-success-flash {
+  animation: safeSuccess 0.8s ease-in-out 3;
+}
+
+/* Defender shield pulse */
+@keyframes shieldPulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 5px rgba(255,59,59,0.3)); }
+  50% { transform: scale(1.05); filter: drop-shadow(0 0 15px rgba(255,59,59,0.6)); }
+}
+.defender-shield {
+  animation: shieldPulse 1.5s ease-in-out infinite;
+}
+
+/* Canvas container styling */
+.fingerprint-canvas-container,
+.lockpick-canvas-container {
+  background: radial-gradient(ellipse at center, rgba(0,255,156,0.03) 0%, transparent 70%);
+  border: 1px solid rgba(0,255,156,0.08);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Heist stage transition */
+.heist-stage-enter {
+  opacity: 0;
+  transform: translateY(20px);
+}
+.heist-stage-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+/* Neon text for heist titles */
+.heist-neon-text {
+  text-shadow: 
+    0 0 7px rgba(0,255,156,0.5),
+    0 0 10px rgba(0,255,156,0.3),
+    0 0 21px rgba(0,255,156,0.2);
+}

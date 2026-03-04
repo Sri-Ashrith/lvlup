@@ -127,6 +127,8 @@ const gameState = {
   teams: {},
   powerUps: {},
   heists: {},
+  targetLocks: {},
+  fullscreenViolations: {}, // teamId -> { violations: number, disqualified: boolean } // targetTeamId -> attackerTeamId (one lock per target)
   eventConfig: {
     currentLevel: 1,
     isEventActive: true,
@@ -135,7 +137,7 @@ const gameState = {
       2: 60 * 60, // 60 minutes
       3: 45 * 60  // 45 minutes
     },
-    heistTimeLimit: 180, // 3 minutes
+    heistTimeLimit: 600, // 10 minutes
     difficultyMultiplier: 1
   },
   levelProgress: {},
@@ -255,14 +257,31 @@ const challenges = {
   },
   level3: {
     compound: [
-      { id: 'c_1', question: 'What keyword is used to define a function in Python?', answer: 'def', reward: 200 },
-      { id: 'c_2', question: 'How do you create a list in Python?', answer: '[]', reward: 200 },
-      { id: 'c_3', question: 'What method adds an element to the end of a list?', answer: 'append', reward: 200 }
+      {
+        id: 'c_1',
+        question: 'You are cracking safes in sequence. Variable tries starts at 0.\n\ntries ← 0\nfor code from 2 to 5 do\n    for attempt from 1 to code do\n        if (code * attempt) mod 3 = 0 then\n            tries ← tries + 2\n        else if attempt = 1 then\n            continue\n        else\n            tries ← tries - 1\nprint tries\n\nWhat is the final value of tries?\n\nA. 5\nB. 2\nC. 3\nD. 4',
+        answer: 'D',
+        reward: 250
+      },
+      {
+        id: 'c_2',
+        question: 'In a heist game, variable loot starts at 0.\n\nloot ← 0\nfor floor from 1 to 3 do\n    for locker from 1 to 3 do\n        if (floor + locker) mod 2 = 0 then\n            loot ← loot + (floor * locker)\n        else\n            loot ← loot - 1\nprint loot\n\nWhat is the final value printed for loot?\n\nA. 5\nB. 7\nC. 4\nD. 6',
+        answer: 'D',
+        reward: 250
+      },
+      {
+        id: 'c_3',
+        question: 'During a digital lockpick, hits counts success patterns.\n\nhits ← 0\nfor i from 1 to 4 do\n    for j from 1 to 4 do\n        if (i + j) mod 2 = 0 then\n            if i < j then\n                hits ← hits + 2\n            else\n                hits ← hits + 1\n        else\n            hits ← hits - 1\nprint hits\n\nWhat is the final value of hits?\n\nA. 4\nB. 7\nC. 5\nD. 6',
+        answer: 'D',
+        reward: 250
+      }
     ],
     safe: [
-      { id: 's_1', question: 'Write a one-liner to reverse a string in Python', answer: 's[::-1]', attempts: 3, timeLimit: 120 },
-      { id: 's_2', question: 'What is the output of: print(type([]) == list)', answer: 'True', attempts: 3, timeLimit: 120 },
-      { id: 's_3', question: 'How do you get the last element of a list named arr?', answer: 'arr[-1]', attempts: 3, timeLimit: 120 }
+      { id: 's_1', question: 'What is the output?\n\nx = 7\ny = 3\nresult = (x * y) + (x - y)\nprint(result)', answer: '2524', codes: ['2524', '1847', '3091', '4762'], correctIndex: 0, attempts: 3 },
+      { id: 's_2', question: 'What is the output?\n\na = 15\nb = 4\nresult = (a % b) * 1000 + (a // b) * 100 + (a + b)\nprint(result)', answer: '3319', codes: ['3319', '4527', '1893', '7061'], correctIndex: 0, attempts: 3 },
+      { id: 's_3', question: 'What is the output?\n\nn = 5\nresult = 1\nfor i in range(1, n+1):\n    result *= i\nprint(result % 10000)', answer: '0120', codes: ['0120', '5040', '3628', '7200'], correctIndex: 0, attempts: 3 },
+      { id: 's_4', question: 'What is the output?\n\ndef mystery(n):\n    if n <= 1: return n\n    return mystery(n-1) + mystery(n-2)\nprint(mystery(10))', answer: '0055', codes: ['0055', '0089', '0034', '0144'], correctIndex: 0, attempts: 3 },
+      { id: 's_5', question: 'What is the output?\n\narr = [3, 1, 4, 1, 5, 9, 2, 6]\narr.sort()\nresult = arr[0]*1000 + arr[1]*100 + arr[-2]*10 + arr[-1]\nprint(result)', answer: '1169', codes: ['1169', '2359', '3469', '4579'], correctIndex: 0, attempts: 3 }
     ]
   }
 };
@@ -272,7 +291,7 @@ function initializeSampleTeams() {
   const teamNames = ['Cyber Wolves', 'Digital Pirates', 'Neon Raiders', 'Shadow Coders', 'Quantum Thieves'];
   teamNames.forEach((name, index) => {
     const teamId = uuidv4();
-    const accessCode = `TEAM${(index + 1).toString().padStart(3, '0')}`;
+    const accessCode = `GDGTEAM${(index + 1).toString().padStart(2, '0')}`;
     gameState.teams[teamId] = {
       id: teamId,
       name: name,
@@ -549,8 +568,54 @@ function failHeist(heist, reason) {
     reason
   });
   io.emit('leaderboardUpdate', getLeaderboard());
+  // Release target lock
+  io.emit('targetLockUpdate', { targetTeamId: heist.targetTeamId, locked: false });
   return transferAmount;
 }
+
+// GET /api/heist/locks — return current target locks for all teams
+app.get('/api/heist/locks', authenticateToken, (req, res) => {
+  // Return which targets are locked and active heists
+  const locks = {};
+  Object.values(gameState.heists).forEach(h => {
+    if (h.status === 'active') {
+      locks[h.targetTeamId] = { attackerId: h.attackerId, heistId: h.id };
+    }
+  });
+  res.json({ locks });
+});
+
+// POST /api/heist/use-powerup — defender uses powerup during heist
+app.post('/api/heist/use-powerup', authenticateToken, (req, res) => {
+  const { powerUpType } = req.body;
+  const teamId = req.user.teamId;
+  const team = gameState.teams[teamId];
+  if (!team) return res.status(404).json({ error: 'Team not found' });
+
+  // Find the active heist where this team is defending
+  const heist = Object.values(gameState.heists).find(
+    h => h.targetTeamId === teamId && h.status === 'active'
+  );
+  if (!heist) return res.status(400).json({ error: 'No active heist against your team' });
+
+  if (powerUpType === 'FREEZE_TIMER') {
+    // Reduce attacker timer by 30 seconds
+    heist.timeLimit = Math.max(30, heist.timeLimit - 30);
+    heist.freezeApplied = (heist.freezeApplied || 0) + 1;
+    io.to(heist.attackerId).emit('heistTimerFreeze', { reduction: 30, newTimeLimit: heist.timeLimit });
+    io.to(teamId).emit('notification', { type: 'success', message: 'Freeze Timer activated! Attacker lost 30 seconds.' });
+    return res.json({ success: true, effect: 'freeze_timer', reduction: 30 });
+  }
+
+  if (powerUpType === 'GUARDIAN_ANGEL') {
+    // Reduce stolen money by 25%
+    heist.guardianAngelStacks = (heist.guardianAngelStacks || 0) + 1;
+    io.to(teamId).emit('notification', { type: 'success', message: 'Guardian Angel activated! Stolen money reduced by 25%.' });
+    return res.json({ success: true, effect: 'guardian_angel', stacks: heist.guardianAngelStacks });
+  }
+
+  return res.status(400).json({ error: 'Invalid power-up type' });
+});
 
 app.post('/api/heist/initiate', authenticateToken, (req, res) => {
   const { targetTeamId } = req.body;
@@ -567,15 +632,15 @@ app.post('/api/heist/initiate', authenticateToken, (req, res) => {
     return res.status(404).json({ error: 'Team not found' });
   }
 
-  // L3-04: Prevent concurrent heists on same target
+  // L3-04: Prevent concurrent heists on same target (Target Lock)
   const activeHeistOnTarget = Object.values(gameState.heists).find(
     h => h.targetTeamId === targetTeamId && h.status === 'active'
   );
   if (activeHeistOnTarget) {
-    return res.status(400).json({ error: 'This team is already being heisted' });
+    return res.status(400).json({ error: 'Target Locked — another team is already heisting them', locked: true });
   }
 
-  // Also prevent attacker from running two heists at once
+  // Prevent attacker from running two heists at once
   const activeHeistByAttacker = Object.values(gameState.heists).find(
     h => h.attackerId === attackerId && h.status === 'active'
   );
@@ -592,7 +657,7 @@ app.post('/api/heist/initiate', authenticateToken, (req, res) => {
     return res.json({ blocked: true, message: 'Target had a shield! Heist blocked.' });
   }
   
-  let timeLimit = gameState.eventConfig.heistTimeLimit;
+  let timeLimit = gameState.eventConfig.heistTimeLimit; // 600s = 10 minutes
   
   // PU-02: Check for TIME_FREEZE on attacker — adds 60s to their heist timer
   const timeFreezeIndex = gameState.powerUps[attackerId].findIndex(p => p.id === 'TIME_FREEZE');
@@ -602,25 +667,26 @@ app.post('/api/heist/initiate', authenticateToken, (req, res) => {
     io.to(attackerId).emit('teamUpdate', { team: sanitizeTeam(attacker), powerUps: gameState.powerUps[attackerId] });
   }
   
-  // Check for guardian angel on target — reduces heist time
-  const guardianIndex = gameState.powerUps[targetTeamId].findIndex(p => p.id === 'GUARDIAN_ANGEL');
-  if (guardianIndex !== -1) {
-    timeLimit -= POWER_UPS.GUARDIAN_ANGEL.effect.heistTimeReduction;
-    gameState.powerUps[targetTeamId].splice(guardianIndex, 1);
-  }
-  
+  // Pick 5 random compound challenges for this heist
   const heistId = uuidv4();
+  const shuffled = seededShuffle(challenges.level3.compound, heistId + attackerId);
+  const heistCompoundChallenges = shuffled.slice(0, 5);
+
   gameState.heists[heistId] = {
     id: heistId,
     attackerId,
     targetTeamId,
     stage: 'compound',
     compoundProgress: [],
+    compoundWrongAnswers: 0, // Track wrong answers (3 = fail)
     safeAttempts: 0,
-    safeChallengeIndex: null, // L3-03: Will store which safe question was assigned
+    safeChallengeIndex: null,
     timeLimit,
     startTime: Date.now(),
-    status: 'active'
+    status: 'active',
+    guardianAngelStacks: 0, // Defender powerup stacks
+    freezeApplied: 0,
+    compoundChallengeIds: heistCompoundChallenges.map(c => c.id) // Which questions were assigned
   };
   
   attacker.heistStatus = 'attacking';
@@ -628,11 +694,14 @@ app.post('/api/heist/initiate', authenticateToken, (req, res) => {
   
   io.to(targetTeamId).emit('heistAlert', { attackerName: attacker.name, heistId });
   io.emit('heistStarted', { attackerName: attacker.name, targetName: target.name, heistId });
+  // Broadcast lock update
+  io.emit('targetLockUpdate', { targetTeamId, locked: true, attackerId });
   
   res.json({ 
     heistId, 
     timeLimit,
-    compoundChallenges: challenges.level3.compound.map(c => ({ ...c, answer: undefined }))
+    totalCompoundQuestions: heistCompoundChallenges.length,
+    compoundChallenges: heistCompoundChallenges.map(c => ({ id: c.id, question: c.question }))
   });
 });
 
@@ -646,7 +715,7 @@ app.post('/api/heist/compound', authenticateToken, (req, res) => {
 
   // L3-01: Server-side timer validation
   const elapsed = Date.now() - heist.startTime;
-  if (elapsed > (heist.timeLimit + 5) * 1000) { // 5s grace for network latency
+  if (elapsed > (heist.timeLimit + 5) * 1000) {
     failHeist(heist, 'Time expired');
     return res.status(400).json({ error: 'Heist time expired', heistFailed: true });
   }
@@ -658,24 +727,58 @@ app.post('/api/heist/compound', authenticateToken, (req, res) => {
   
   if (isCorrect) {
     heist.compoundProgress.push(challengeId);
+    const totalNeeded = heist.compoundChallengeIds ? heist.compoundChallengeIds.length : challenges.level3.compound.length;
     
-    if (heist.compoundProgress.length >= challenges.level3.compound.length) {
+    if (heist.compoundProgress.length >= totalNeeded) {
       heist.stage = 'safe';
-      // L3-03: Pick random safe challenge and store the INDEX in heist state
       const safeIndex = Math.floor(Math.random() * challenges.level3.safe.length);
       heist.safeChallengeIndex = safeIndex;
       const safeChallenge = challenges.level3.safe[safeIndex];
       return res.json({ 
         success: true, 
+        correct: true,
         stageComplete: true, 
         nextStage: 'safe',
-        safeChallenge: { ...safeChallenge, answer: undefined }
+        safeChallenge: {
+          id: safeChallenge.id,
+          question: safeChallenge.question,
+          codes: safeChallenge.codes // Send all 4 codes; player must pick right one
+        }
       });
     }
     
-    res.json({ success: true, correct: true, progress: heist.compoundProgress.length });
+    res.json({ success: true, correct: true, progress: heist.compoundProgress.length, total: totalNeeded });
   } else {
-    res.json({ success: true, correct: false });
+    // Wrong answer tracking
+    heist.compoundWrongAnswers = (heist.compoundWrongAnswers || 0) + 1;
+    
+    // Alert defending team
+    const attacker = gameState.teams[heist.attackerId];
+    io.to(heist.targetTeamId).emit('heistWrongAnswer', { 
+      attackerName: attacker?.name, 
+      wrongCount: heist.compoundWrongAnswers,
+      message: 'Your vault is being robbed!' 
+    });
+    
+    // 3 wrong answers = heist fails
+    if (heist.compoundWrongAnswers >= 3) {
+      const transferAmount = failHeist(heist, 'Too many wrong answers in compound stage');
+      return res.json({ 
+        success: true, 
+        correct: false, 
+        heistFailed: true, 
+        wrongCount: heist.compoundWrongAnswers,
+        transferAmount,
+        message: '3 wrong answers! Heist failed!' 
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      correct: false, 
+      wrongCount: heist.compoundWrongAnswers,
+      wrongRemaining: 3 - heist.compoundWrongAnswers 
+    });
   }
 });
 
@@ -705,8 +808,19 @@ app.post('/api/heist/safe', authenticateToken, (req, res) => {
   const target = gameState.teams[heist.targetTeamId];
   
   if (isCorrect) {
-    // Heist successful - steal 50% of target's cash
-    const stolenAmount = Math.floor(target.cash * 0.5);
+    // Calculate money percentage based on elapsed time (100% -> -5% per minute)
+    const elapsedMs = Date.now() - heist.startTime;
+    const elapsedMinutes = Math.floor(elapsedMs / 60000);
+    const moneyPercent = Math.max(50, 100 - (elapsedMinutes * 5)); // min 50%
+    
+    // Apply guardian angel stacks (each reduces by 25%)
+    let guardianReduction = 1;
+    for (let i = 0; i < (heist.guardianAngelStacks || 0); i++) {
+      guardianReduction *= 0.75; // Each stack reduces by 25%
+    }
+    
+    const baseSteal = Math.floor(target.cash * (moneyPercent / 100));
+    const stolenAmount = Math.floor(baseSteal * guardianReduction);
     target.cash -= stolenAmount;
     attacker.cash += stolenAmount;
     
@@ -721,13 +835,19 @@ app.post('/api/heist/safe', authenticateToken, (req, res) => {
       stolenAmount 
     });
     io.emit('leaderboardUpdate', getLeaderboard());
+    // Release target lock
+    io.emit('targetLockUpdate', { targetTeamId: heist.targetTeamId, locked: false });
     
-    res.json({ success: true, heistSuccess: true, stolenAmount });
+    res.json({ success: true, heistSuccess: true, stolenAmount, moneyPercent, guardianReduction });
   } else if (heist.safeAttempts >= 3) {
     // Heist failed - use shared helper
     const transferAmount = failHeist(heist, 'Max safe attempts exceeded');
+    // Alert defender they can use Guardian Angel
+    io.to(heist.targetTeamId).emit('heistWrongCode', { wrongCount: heist.safeAttempts });
     res.json({ success: true, heistSuccess: false, transferAmount });
   } else {
+    // Wrong code — alert defender
+    io.to(heist.targetTeamId).emit('heistWrongCode', { wrongCount: heist.safeAttempts });
     res.json({ success: true, correct: false, attemptsRemaining: 3 - heist.safeAttempts });
   }
 });
@@ -742,6 +862,43 @@ setInterval(() => {
     }
   });
 }, 15000);
+
+// ── Fullscreen enforcement routes ────────────────────────────────────
+app.get('/api/team/fullscreen-status', authenticateToken, (req, res) => {
+  const teamId = req.user.teamId;
+  if (!teamId) return res.status(400).json({ error: 'Not a team user' });
+  const record = gameState.fullscreenViolations[teamId] || { violations: 0, disqualified: false };
+  res.json(record);
+});
+
+app.post('/api/team/fullscreen-violation', authenticateToken, (req, res) => {
+  const teamId = req.user.teamId;
+  if (!teamId) return res.status(400).json({ error: 'Not a team user' });
+  const { violations } = req.body;
+  if (!gameState.fullscreenViolations[teamId]) {
+    gameState.fullscreenViolations[teamId] = { violations: 0, disqualified: false };
+  }
+  gameState.fullscreenViolations[teamId].violations = violations;
+  const team = gameState.teams[teamId];
+  console.log(`[FULLSCREEN] Team ${team?.name || teamId} violation #${violations}`);
+  // Alert admins in real-time
+  io.to('admin').emit('fullscreenViolation', { teamId, teamName: team?.name, violations });
+  res.json({ success: true, violations });
+});
+
+app.post('/api/team/fullscreen-disqualify', authenticateToken, (req, res) => {
+  const teamId = req.user.teamId;
+  if (!teamId) return res.status(400).json({ error: 'Not a team user' });
+  if (!gameState.fullscreenViolations[teamId]) {
+    gameState.fullscreenViolations[teamId] = { violations: 3, disqualified: true };
+  } else {
+    gameState.fullscreenViolations[teamId].disqualified = true;
+  }
+  const team = gameState.teams[teamId];
+  console.log(`[FULLSCREEN] Team ${team?.name || teamId} DISQUALIFIED`);
+  io.to('admin').emit('teamDisqualified', { teamId, teamName: team?.name });
+  res.json({ success: true });
+});
 
 // Admin routes
 app.post('/api/admin/add-cash', authenticateToken, (req, res) => {
@@ -853,13 +1010,13 @@ app.post('/api/admin/create-team', authenticateToken, (req, res) => {
   
   const { name } = req.body;
   const teamId = uuidv4();
-  // Generate sequential access code TEAM001, TEAM002, etc.
+  // Generate sequential access code GDGTEAM01, GDGTEAM02, etc.
   const existingCodes = Object.values(gameState.teams)
     .map(t => t.accessCode)
-    .filter(c => /^TEAM\d{3}$/.test(c))
-    .map(c => parseInt(c.replace('TEAM', ''), 10));
+    .filter(c => /^GDGTEAM\d{2}$/.test(c))
+    .map(c => parseInt(c.replace('GDGTEAM', ''), 10));
   const nextNum = existingCodes.length > 0 ? Math.max(...existingCodes) + 1 : 1;
-  const accessCode = 'TEAM' + String(nextNum).padStart(3, '0');
+  const accessCode = 'GDGTEAM' + String(nextNum).padStart(2, '0');
   
   gameState.teams[teamId] = {
     id: teamId,
@@ -897,8 +1054,39 @@ app.get('/api/admin/event-state', authenticateToken, (req, res) => {
     eventConfig: gameState.eventConfig,
     heists: Object.values(gameState.heists).filter(h => h.status === 'active'),
     powerUps: POWER_UPS,
-    powerUpsByTeam: gameState.powerUps
+    powerUpsByTeam: gameState.powerUps,
+    fullscreenViolations: gameState.fullscreenViolations
   });
+});
+
+app.post('/api/admin/disqualify-team', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  const { teamId } = req.body;
+  const team = gameState.teams[teamId];
+  if (!team) return res.status(404).json({ error: 'Team not found' });
+  if (!gameState.fullscreenViolations[teamId]) {
+    gameState.fullscreenViolations[teamId] = { violations: 3, disqualified: true };
+  } else {
+    gameState.fullscreenViolations[teamId].disqualified = true;
+  }
+  logAdminAction('disqualify-team', { teamId, teamName: team.name });
+  // Notify the team in real-time
+  io.to(teamId).emit('disqualified', { reason: 'Admin disqualification' });
+  res.json({ success: true });
+});
+
+app.post('/api/admin/undisqualify-team', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  const { teamId } = req.body;
+  const team = gameState.teams[teamId];
+  if (!team) return res.status(404).json({ error: 'Team not found' });
+  if (gameState.fullscreenViolations[teamId]) {
+    gameState.fullscreenViolations[teamId].disqualified = false;
+    gameState.fullscreenViolations[teamId].violations = 0;
+  }
+  logAdminAction('undisqualify-team', { teamId, teamName: team.name });
+  io.to(teamId).emit('undisqualified', {});
+  res.json({ success: true });
 });
 
 app.post('/api/admin/announcement', authenticateToken, (req, res) => {

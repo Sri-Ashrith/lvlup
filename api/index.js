@@ -111,14 +111,31 @@ const challenges = {
   },
   level3: {
     compound: [
-      { id: 'c_1', question: 'What keyword is used to define a function in Python?', answer: 'def', reward: 200 },
-      { id: 'c_2', question: 'How do you create a list in Python?', answer: '[]', reward: 200 },
-      { id: 'c_3', question: 'What method adds an element to the end of a list?', answer: 'append', reward: 200 }
+      {
+        id: 'c_1',
+        question: 'You are cracking safes in sequence. Variable tries starts at 0.\n\ntries ← 0\nfor code from 2 to 5 do\n    for attempt from 1 to code do\n        if (code * attempt) mod 3 = 0 then\n            tries ← tries + 2\n        else if attempt = 1 then\n            continue\n        else\n            tries ← tries - 1\nprint tries\n\nWhat is the final value of tries?\n\nA. 5\nB. 2\nC. 3\nD. 4',
+        answer: 'D',
+        reward: 250
+      },
+      {
+        id: 'c_2',
+        question: 'In a heist game, variable loot starts at 0.\n\nloot ← 0\nfor floor from 1 to 3 do\n    for locker from 1 to 3 do\n        if (floor + locker) mod 2 = 0 then\n            loot ← loot + (floor * locker)\n        else\n            loot ← loot - 1\nprint loot\n\nWhat is the final value printed for loot?\n\nA. 5\nB. 7\nC. 4\nD. 6',
+        answer: 'D',
+        reward: 250
+      },
+      {
+        id: 'c_3',
+        question: 'During a digital lockpick, hits counts success patterns.\n\nhits ← 0\nfor i from 1 to 4 do\n    for j from 1 to 4 do\n        if (i + j) mod 2 = 0 then\n            if i < j then\n                hits ← hits + 2\n            else\n                hits ← hits + 1\n        else\n            hits ← hits - 1\nprint hits\n\nWhat is the final value of hits?\n\nA. 4\nB. 7\nC. 5\nD. 6',
+        answer: 'D',
+        reward: 250
+      }
     ],
     safe: [
-      { id: 's_1', question: 'Write a one-liner to reverse a string in Python', answer: 's[::-1]', attempts: 3, timeLimit: 120 },
-      { id: 's_2', question: 'What is the output of: print(type([]) == list)', answer: 'True', attempts: 3, timeLimit: 120 },
-      { id: 's_3', question: 'How do you get the last element of a list named arr?', answer: 'arr[-1]', attempts: 3, timeLimit: 120 }
+      { id: 's_1', question: 'What is the output?\n\nx = 7\ny = 3\nresult = (x * y) + (x - y)\nprint(result)', answer: '2524', codes: ['2524', '1847', '3091', '4762'], correctIndex: 0, attempts: 3 },
+      { id: 's_2', question: 'What is the output?\n\na = 15\nb = 4\nresult = (a % b) * 1000 + (a // b) * 100 + (a + b)\nprint(result)', answer: '3319', codes: ['3319', '4527', '1893', '7061'], correctIndex: 0, attempts: 3 },
+      { id: 's_3', question: 'What is the output?\n\nn = 5\nresult = 1\nfor i in range(1, n+1):\n    result *= i\nprint(result % 10000)', answer: '0120', codes: ['0120', '5040', '3628', '7200'], correctIndex: 0, attempts: 3 },
+      { id: 's_4', question: 'What is the output?\n\ndef mystery(n):\n    if n <= 1: return n\n    return mystery(n-1) + mystery(n-2)\nprint(mystery(10))', answer: '0055', codes: ['0055', '0089', '0034', '0144'], correctIndex: 0, attempts: 3 },
+      { id: 's_5', question: 'What is the output?\n\narr = [3, 1, 4, 1, 5, 9, 2, 6]\narr.sort()\nresult = arr[0]*1000 + arr[1]*100 + arr[-2]*10 + arr[-1]\nprint(result)', answer: '1169', codes: ['1169', '2359', '3469', '4579'], correctIndex: 0, attempts: 3 }
     ]
   }
 };
@@ -170,7 +187,7 @@ async function getCompletedChallenges(teamId, levelKey, zone) {
 
 async function getEventConfig() {
   const { data } = await supabase.from('event_config').select('*').eq('id', 1).single();
-  if (!data) return { currentLevel: 1, isEventActive: true, levelTimers: { 1: 2700, 2: 3600, 3: 2700 }, heistTimeLimit: 180, difficultyMultiplier: 1 };
+  if (!data) return { currentLevel: 1, isEventActive: true, levelTimers: { 1: 2700, 2: 3600, 3: 2700 }, heistTimeLimit: 600, difficultyMultiplier: 1 };
   return {
     currentLevel: data.current_level,
     isEventActive: data.is_event_active,
@@ -411,6 +428,43 @@ async function handleRequest(req, res) {
   }
 
   // ── Heist routes ──────────────────────────────────────────────────────
+
+  // GET active target locks
+  if (req.method === 'GET' && path === '/heist/locks') {
+    const { data: activeHeists } = await supabase.from('heists').select('target_team_id, attacker_id').eq('status', 'active');
+    const locks = {};
+    for (const h of (activeHeists || [])) {
+      locks[h.target_team_id] = { locked: true, attackerId: h.attacker_id };
+    }
+    return json(res, 200, { locks });
+  }
+
+  // POST use defender powerup
+  if (req.method === 'POST' && path === '/heist/use-powerup') {
+    const body = await parseBody(req);
+    const { powerUpType } = body;
+    const teamId = user.teamId;
+
+    // Find heist where this team is defending
+    const { data: heists } = await supabase.from('heists').select('*').eq('target_team_id', teamId).eq('status', 'active').limit(1);
+    const heist = heists?.[0];
+    if (!heist) return json(res, 400, { error: 'No active heist targeting your team' });
+
+    if (powerUpType === 'FREEZE_TIMER') {
+      const newTimeLimit = Math.max(60, (heist.time_limit || 600) - 30);
+      await supabase.from('heists').update({ time_limit: newTimeLimit }).eq('id', heist.id);
+      return json(res, 200, { success: true, effect: 'freeze_timer', reduction: 30 });
+    }
+
+    if (powerUpType === 'GUARDIAN_ANGEL') {
+      const stacks = (heist.guardian_angel_stacks || 0) + 1;
+      await supabase.from('heists').update({ guardian_angel_stacks: stacks }).eq('id', heist.id);
+      return json(res, 200, { success: true, effect: 'guardian_angel', stacks });
+    }
+
+    return json(res, 400, { error: 'Invalid power-up type' });
+  }
+
   if (req.method === 'POST' && path === '/heist/initiate') {
     const body = await parseBody(req);
     const { targetTeamId } = body;
@@ -421,9 +475,9 @@ async function handleRequest(req, res) {
     const target = await getTeamById(targetTeamId);
     if (!attacker || !target) return json(res, 404, { error: 'Team not found' });
 
-    // Check active heists
+    // Check active heists (target lock)
     const { data: activeTarget } = await supabase.from('heists').select('id').eq('target_team_id', targetTeamId).eq('status', 'active').limit(1);
-    if (activeTarget?.length) return json(res, 400, { error: 'Target already being heisted' });
+    if (activeTarget?.length) return json(res, 400, { error: 'Target Locked — another team is already heisting them', locked: true });
     const { data: activeAttacker } = await supabase.from('heists').select('id').eq('attacker_id', attackerId).eq('status', 'active').limit(1);
     if (activeAttacker?.length) return json(res, 400, { error: 'You already have an active heist' });
 
@@ -435,26 +489,41 @@ async function handleRequest(req, res) {
     }
 
     const eventConfig = await getEventConfig();
-    let timeLimit = eventConfig.heistTimeLimit;
+    let timeLimit = eventConfig.heistTimeLimit; // 600s = 10 minutes
 
-    // TIME_FREEZE for attacker
+    // TIME_FREEZE for attacker — adds 60s
     const { data: tfRow } = await supabase.from('team_powerups').select('id').eq('team_id', attackerId).eq('powerup_id', 'TIME_FREEZE').limit(1).single();
     if (tfRow) { timeLimit += 60; await supabase.from('team_powerups').delete().eq('id', tfRow.id); }
 
-    // GUARDIAN_ANGEL for target
-    const { data: gaRow } = await supabase.from('team_powerups').select('id').eq('team_id', targetTeamId).eq('powerup_id', 'GUARDIAN_ANGEL').limit(1).single();
-    if (gaRow) { timeLimit -= 30; await supabase.from('team_powerups').delete().eq('id', gaRow.id); }
-
     const heistId = uuidv4();
+
+    // Pick 5 random compound challenges using seeded shuffle
+    function seededShuffle(arr, seed) {
+      let h = 0;
+      for (let i = 0; i < seed.length; i++) { h = ((h << 5) - h) + seed.charCodeAt(i); h |= 0; }
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) { h = (h * 16807 + 0) % 2147483647; const j = h % (i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+      return a;
+    }
+    const shuffled = seededShuffle(challenges.level3.compound, heistId + attackerId);
+    const heistCompoundChallenges = shuffled.slice(0, 5);
+
     await supabase.from('heists').insert({
       id: heistId, attacker_id: attackerId, target_team_id: targetTeamId,
-      stage: 'compound', compound_progress: [], safe_attempts: 0,
-      time_limit: timeLimit, start_time: Date.now(), status: 'active'
+      stage: 'compound', compound_progress: [], compound_wrong_answers: 0,
+      safe_attempts: 0, guardian_angel_stacks: 0,
+      time_limit: timeLimit, start_time: Date.now(), status: 'active',
+      compound_challenge_ids: heistCompoundChallenges.map(c => c.id)
     });
     await supabase.from('teams').update({ heist_status: 'attacking' }).eq('id', attackerId);
     await supabase.from('teams').update({ heist_status: 'defending' }).eq('id', targetTeamId);
 
-    return json(res, 200, { heistId, timeLimit, compoundChallenges: challenges.level3.compound.map(c => ({ ...c, answer: undefined })) });
+    return json(res, 200, {
+      heistId,
+      timeLimit,
+      totalCompoundQuestions: heistCompoundChallenges.length,
+      compoundChallenges: heistCompoundChallenges.map(c => ({ id: c.id, question: c.question }))
+    });
   }
 
   if (req.method === 'POST' && path === '/heist/compound') {
@@ -472,15 +541,46 @@ async function handleRequest(req, res) {
 
     if (body.answer.toLowerCase().trim() === ch.answer.toLowerCase().trim()) {
       const progress = [...(heist.compound_progress || []), body.challengeId];
-      if (progress.length >= challenges.level3.compound.length) {
+      const totalNeeded = (heist.compound_challenge_ids || []).length || challenges.level3.compound.length;
+
+      if (progress.length >= totalNeeded) {
         const si = Math.floor(Math.random() * challenges.level3.safe.length);
         await supabase.from('heists').update({ compound_progress: progress, stage: 'safe', safe_challenge_index: si }).eq('id', heist.id);
-        return json(res, 200, { success: true, stageComplete: true, nextStage: 'safe', safeChallenge: { ...challenges.level3.safe[si], answer: undefined } });
+        const safeChallenge = challenges.level3.safe[si];
+        return json(res, 200, {
+          success: true,
+          correct: true,
+          stageComplete: true,
+          nextStage: 'safe',
+          safeChallenge: {
+            id: safeChallenge.id,
+            question: safeChallenge.question,
+            codes: safeChallenge.codes
+          }
+        });
       }
       await supabase.from('heists').update({ compound_progress: progress }).eq('id', heist.id);
-      return json(res, 200, { success: true, correct: true, progress: progress.length });
+      return json(res, 200, { success: true, correct: true, progress: progress.length, total: totalNeeded });
     }
-    return json(res, 200, { success: true, correct: false });
+
+    // Wrong answer tracking
+    const wrongCount = (heist.compound_wrong_answers || 0) + 1;
+    await supabase.from('heists').update({ compound_wrong_answers: wrongCount }).eq('id', heist.id);
+
+    // 3 wrong answers = heist fails
+    if (wrongCount >= 3) {
+      const amt = await failHeistDb(heist);
+      return json(res, 200, {
+        success: true,
+        correct: false,
+        heistFailed: true,
+        wrongCount,
+        transferAmount: amt,
+        message: '3 wrong answers! Heist failed!'
+      });
+    }
+
+    return json(res, 200, { success: true, correct: false, wrongCount, wrongRemaining: 3 - wrongCount });
   }
 
   if (req.method === 'POST' && path === '/heist/safe') {
@@ -502,12 +602,23 @@ async function handleRequest(req, res) {
     const target = await getTeamById(heist.target_team_id);
 
     if (correct) {
-      const stolen = Math.floor(target.cash * 0.5);
-      await supabase.from('teams').update({ cash: target.cash - stolen }).eq('id', target.id);
+      // Calculate money percentage based on elapsed time (100% -> -5% per minute, min 50%)
+      const elapsedMs = Date.now() - Number(heist.start_time);
+      const elapsedMinutes = Math.floor(elapsedMs / 60000);
+      const moneyPercent = Math.max(50, 100 - (elapsedMinutes * 5));
+
+      // Apply guardian angel stacks (each reduces by 25%)
+      let guardianReduction = 1;
+      for (let i = 0; i < (heist.guardian_angel_stacks || 0); i++) {
+        guardianReduction *= 0.75;
+      }
+
+      const baseSteal = Math.floor(target.cash * (moneyPercent / 100));
+      const stolen = Math.floor(baseSteal * guardianReduction);
+      await supabase.from('teams').update({ cash: target.cash - stolen, heist_status: 'none' }).eq('id', target.id);
       await supabase.from('teams').update({ cash: attacker.cash + stolen, heist_status: 'none' }).eq('id', attacker.id);
-      await supabase.from('teams').update({ heist_status: 'none' }).eq('id', target.id);
       await supabase.from('heists').update({ status: 'success' }).eq('id', heist.id);
-      return json(res, 200, { success: true, heistSuccess: true, stolenAmount: stolen });
+      return json(res, 200, { success: true, heistSuccess: true, stolenAmount: stolen, moneyPercent, guardianReduction });
     }
 
     if (newAttempts >= 3) {
@@ -518,8 +629,50 @@ async function handleRequest(req, res) {
     return json(res, 200, { success: true, correct: false, attemptsRemaining: 3 - newAttempts });
   }
 
+  // ── Fullscreen enforcement routes ─────────────────────────────────────
+  if (req.method === 'GET' && path === '/team/fullscreen-status') {
+    const teamId = user.teamId;
+    if (!teamId) return json(res, 400, { error: 'Not a team user' });
+    const { data } = await supabase.from('teams').select('fullscreen_violations, disqualified').eq('id', teamId).single();
+    return json(res, 200, {
+      violations: data?.fullscreen_violations || 0,
+      disqualified: data?.disqualified || false
+    });
+  }
+
+  if (req.method === 'POST' && path === '/team/fullscreen-violation') {
+    const teamId = user.teamId;
+    if (!teamId) return json(res, 400, { error: 'Not a team user' });
+    const body = await parseBody(req);
+    await supabase.from('teams').update({ fullscreen_violations: body.violations }).eq('id', teamId);
+    return json(res, 200, { success: true, violations: body.violations });
+  }
+
+  if (req.method === 'POST' && path === '/team/fullscreen-disqualify') {
+    const teamId = user.teamId;
+    if (!teamId) return json(res, 400, { error: 'Not a team user' });
+    await supabase.from('teams').update({ disqualified: true }).eq('id', teamId);
+    return json(res, 200, { success: true });
+  }
+
   // ── Admin routes ──────────────────────────────────────────────────────
   if (user.role !== 'admin' && path.startsWith('/admin/')) return json(res, 403, { error: 'Admin only' });
+
+  if (req.method === 'POST' && path === '/admin/disqualify-team') {
+    const body = await parseBody(req);
+    const team = await getTeamById(body.teamId);
+    if (!team) return json(res, 404, { error: 'Team not found' });
+    await supabase.from('teams').update({ disqualified: true }).eq('id', body.teamId);
+    return json(res, 200, { success: true });
+  }
+
+  if (req.method === 'POST' && path === '/admin/undisqualify-team') {
+    const body = await parseBody(req);
+    const team = await getTeamById(body.teamId);
+    if (!team) return json(res, 404, { error: 'Team not found' });
+    await supabase.from('teams').update({ disqualified: false, fullscreen_violations: 0 }).eq('id', body.teamId);
+    return json(res, 200, { success: true });
+  }
 
   if (req.method === 'POST' && path === '/admin/add-cash') {
     const body = await parseBody(req);
@@ -558,10 +711,29 @@ async function handleRequest(req, res) {
     return json(res, 200, { success: true, currentLevel: body.level });
   }
 
+  if (req.method === 'POST' && path === '/admin/delete-team') {
+    const body = await parseBody(req);
+    const team = await getTeamById(body.teamId);
+    if (!team) return json(res, 404, { error: 'Team not found' });
+    // Delete related records first
+    await supabase.from('team_powerups').delete().eq('team_id', body.teamId);
+    await supabase.from('completed_challenges').delete().eq('team_id', body.teamId);
+    await supabase.from('heists').delete().or(`attacker_id.eq.${body.teamId},target_team_id.eq.${body.teamId}`);
+    await supabase.from('teams').delete().eq('id', body.teamId);
+    return json(res, 200, { success: true });
+  }
+
   if (req.method === 'POST' && path === '/admin/create-team') {
     const body = await parseBody(req);
     const eventConfig = await getEventConfig();
-    const code = 'GDG-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    // Generate sequential GDGTEAM## code
+    const { data: allTeams } = await supabase.from('teams').select('access_code');
+    const existingNums = (allTeams || [])
+      .map(t => t.access_code)
+      .filter(c => /^GDGTEAM\d{2}$/.test(c))
+      .map(c => parseInt(c.replace('GDGTEAM', ''), 10));
+    const nextNum = existingNums.length > 0 ? Math.max(...existingNums) + 1 : 1;
+    const code = 'GDGTEAM' + String(nextNum).padStart(2, '0');
     const { data: newTeam, error } = await supabase.from('teams').insert({
       name: body.name, access_code: code, cash: 0,
       current_level: eventConfig.currentLevel, heist_status: 'none', is_online: false
@@ -596,6 +768,17 @@ async function handleRequest(req, res) {
       powerUps: powerUpsByTeam[t.id] || []
     }));
 
+    // Build fullscreenViolations map from teams data
+    const fullscreenViolations = {};
+    for (const t of (teams || [])) {
+      if (t.fullscreen_violations > 0 || t.disqualified) {
+        fullscreenViolations[t.id] = {
+          violations: t.fullscreen_violations || 0,
+          disqualified: !!t.disqualified
+        };
+      }
+    }
+
     return json(res, 200, {
       teams: teamsWithPups,
       eventConfig,
@@ -604,7 +787,8 @@ async function handleRequest(req, res) {
         stage: h.stage, status: h.status, timeLimit: h.time_limit, startTime: Number(h.start_time)
       })),
       powerUps: POWER_UPS,
-      powerUpsByTeam
+      powerUpsByTeam,
+      fullscreenViolations
     });
   }
 

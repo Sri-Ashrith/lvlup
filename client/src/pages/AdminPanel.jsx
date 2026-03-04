@@ -28,7 +28,9 @@ import {
   Target,
   Skull,
   Star,
-  Megaphone
+  Megaphone,
+  Ban,
+  CheckCircle
 } from 'lucide-react';
 import Leaderboard from '../components/Leaderboard';
 
@@ -230,6 +232,36 @@ export default function AdminPanel() {
   const totalCash = teams.reduce((sum, t) => sum + t.cash, 0);
   const onlineTeams = teams.filter(t => t.isOnline).length;
   const activeHeists = eventState?.heists?.length || 0;
+  const fullscreenViolations = eventState?.fullscreenViolations || {};
+  const disqualifiedTeams = teams.filter(t => fullscreenViolations[t.id]?.disqualified);
+
+  const handleDisqualifyTeam = async (teamId) => {
+    playSound('click');
+    setIsLoading(true);
+    try {
+      await axios.post(`${API_URL}/admin/disqualify-team`, { teamId }, authConfig);
+      playSound('error');
+      await loadEventState();
+    } catch (error) {
+      playSound('error');
+      console.error('Failed to disqualify team:', error);
+    }
+    setIsLoading(false);
+  };
+
+  const handleUndisqualifyTeam = async (teamId) => {
+    playSound('click');
+    setIsLoading(true);
+    try {
+      await axios.post(`${API_URL}/admin/undisqualify-team`, { teamId }, authConfig);
+      playSound('success');
+      await loadEventState();
+    } catch (error) {
+      playSound('error');
+      console.error('Failed to undisqualify team:', error);
+    }
+    setIsLoading(false);
+  };
 
   return (
     <div className="min-h-screen pb-8">
@@ -316,15 +348,21 @@ export default function AdminPanel() {
 
         {/* Tabs - RESP-01: scrollable on mobile */}
         <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-thin">
-          {['dashboard', 'teams', 'controls'].map((tab) => (
+          {['dashboard', 'teams', 'controls', 'disqualified'].map((tab) => (
             <button
               key={tab}
               onClick={() => { playSound('click'); setActiveTab(tab); }}
-              className={`gta-button text-sm py-2 px-4 capitalize whitespace-nowrap flex-shrink-0 ${
+              className={`gta-button text-sm py-2 px-4 capitalize whitespace-nowrap flex-shrink-0 ${tab === 'disqualified' ? 'flex items-center gap-2' : ''} ${
                 activeTab === tab ? '' : 'opacity-50'
               }`}
             >
+              {tab === 'disqualified' && <Ban className="w-3.5 h-3.5" />}
               {tab}
+              {tab === 'disqualified' && disqualifiedTeams.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-gta-red text-white font-bold">
+                  {disqualifiedTeams.length}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -514,7 +552,9 @@ export default function AdminPanel() {
               <div className="gta-card p-6">
                 <h2 className="text-xl font-gta-heading text-white mb-4">Select Team</h2>
                 <div className="grid gap-2 max-h-96 overflow-y-auto">
-                  {teams.map((team) => (
+                  {teams.map((team) => {
+                    const isDQ = fullscreenViolations[team.id]?.disqualified;
+                    return (
                     <button
                       key={team.id}
                       onClick={() => { playSound('click'); setSelectedTeam(team); }}
@@ -522,15 +562,17 @@ export default function AdminPanel() {
                         selectedTeam?.id === team.id 
                           ? 'bg-gta-green/30 border border-gta-green' 
                           : 'bg-gta-dark/50 hover:bg-gta-green/10'
-                      }`}
+                      } ${isDQ ? 'opacity-50 border-gta-red/30' : ''}`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${team.isOnline ? 'bg-green-500' : 'bg-gray-500'}`} />
+                        <div className={`w-2 h-2 rounded-full ${isDQ ? 'bg-gta-red' : team.isOnline ? 'bg-green-500' : 'bg-gray-500'}`} />
                         <span className="font-gta-heading text-white">{team.name}</span>
+                        {isDQ && <span className="text-[10px] px-1.5 py-0.5 rounded bg-gta-red/20 text-gta-red font-mono">DQ</span>}
                       </div>
                       <span className="cash-display">${team.cash.toLocaleString()}</span>
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -635,6 +677,117 @@ export default function AdminPanel() {
                   </div>
                 </div>
               )}
+            </motion.div>
+          )}
+
+          {/* Disqualified Teams Tab */}
+          {activeTab === 'disqualified' && (
+            <motion.div
+              key="disqualified"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="grid md:grid-cols-2 gap-8"
+            >
+              {/* Disqualified Teams List */}
+              <div className="gta-card p-6">
+                <h2 className="text-xl font-gta-heading text-white mb-4 flex items-center gap-2">
+                  <Ban className="w-5 h-5 text-gta-red" />
+                  Disqualified Teams
+                </h2>
+                {disqualifiedTeams.length > 0 ? (
+                  <div className="space-y-3">
+                    {disqualifiedTeams.map((team) => (
+                      <div
+                        key={team.id}
+                        className="p-4 rounded-lg border border-gta-red/30 bg-gta-red/5 flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Ban className="w-5 h-5 text-gta-red flex-shrink-0" />
+                          <div>
+                            <p className="font-gta-heading text-white">{team.name}</p>
+                            <p className="text-gray-500 text-xs font-mono">
+                              Violations: {fullscreenViolations[team.id]?.violations || 0}/3 • Code: {team.accessCode}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleUndisqualifyTeam(team.id)}
+                          disabled={isLoading}
+                          className="gta-button gta-button-success text-xs py-1.5 px-4 flex items-center gap-1.5"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          Reinstate
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <CheckCircle className="w-12 h-12 text-green-500/30 mx-auto mb-3" />
+                    <p className="text-gray-500 font-mono text-sm">No disqualified teams</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Fullscreen Violations Overview */}
+              <div className="gta-card p-6">
+                <h2 className="text-xl font-gta-heading text-white mb-4 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                  Fullscreen Violations
+                </h2>
+                <div className="space-y-2">
+                  {teams.filter(t => (fullscreenViolations[t.id]?.violations || 0) > 0).length > 0 ? (
+                    teams
+                      .filter(t => (fullscreenViolations[t.id]?.violations || 0) > 0)
+                      .sort((a, b) => (fullscreenViolations[b.id]?.violations || 0) - (fullscreenViolations[a.id]?.violations || 0))
+                      .map((team) => {
+                        const v = fullscreenViolations[team.id];
+                        return (
+                          <div
+                            key={team.id}
+                            className={`p-3 rounded-lg border flex items-center justify-between ${
+                              v.disqualified ? 'border-gta-red/30 bg-gta-red/5' : 'border-yellow-500/20 bg-yellow-500/5'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="font-gta-heading text-white text-sm">{team.name}</span>
+                              <div className="flex gap-1">
+                                {[0, 1, 2].map(i => (
+                                  <div
+                                    key={i}
+                                    className={`w-5 h-1.5 rounded-full ${
+                                      i < (v.violations || 0) ? 'bg-gta-red' : 'bg-gray-700'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                              {v.disqualified && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-gta-red/20 text-gta-red font-mono">DQ</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 font-mono text-xs">{v.violations}/3</span>
+                              {!v.disqualified && (
+                                <button
+                                  onClick={() => handleDisqualifyTeam(team.id)}
+                                  disabled={isLoading}
+                                  className="gta-button gta-button-danger text-[10px] py-1 px-2"
+                                >
+                                  DQ
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500 font-mono text-sm">No violations recorded yet</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </motion.div>
           )}
 

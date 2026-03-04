@@ -13,6 +13,7 @@ import Leaderboard from './pages/Leaderboard';
 import BackgroundEffects from './components/BackgroundEffects';
 import GTALoadingScreen from './components/GTALoadingScreen';
 import CustomCursor from './components/landing/CustomCursor';
+import FullscreenGuard from './components/FullscreenGuard';
 
 function ProtectedRoute({ children, requiredRole }) {
   const { user, isAuthenticated } = useAuth();
@@ -55,6 +56,7 @@ function App() {
     <Router>
       <CustomCursor />
       {showLoading && <GTALoadingScreen onComplete={handleLoadingComplete} />}
+      <FullscreenGuard>
       <div className="min-h-screen relative film-grain">
         <ConnectionBanner />
         <BackgroundEffects />
@@ -111,6 +113,7 @@ function App() {
           </Routes>
         </div>
       </div>
+      </FullscreenGuard>
     </Router>
   );
 }

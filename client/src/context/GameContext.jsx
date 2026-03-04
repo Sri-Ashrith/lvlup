@@ -17,6 +17,9 @@ export function GameProvider({ children }) {
   const [heistAlert, setHeistAlert] = useState(null);
   const [notification, setNotification] = useState(null);
   const [teamProgress, setTeamProgress] = useState(null);
+  const [targetLocks, setTargetLocks] = useState({}); // targetTeamId -> { attackerId, heistId }
+  const [defenderHeistEvents, setDefenderHeistEvents] = useState([]); // wrong answer/code events for defender
+  const [fullscreenDisqualified, setFullscreenDisqualified] = useState(false);
   const [eventConfig, setEventConfig] = useState({
     currentLevel: 1,
     isEventActive: true
@@ -102,6 +105,51 @@ export function GameProvider({ children }) {
         });
       });
 
+      // Target lock updates
+      socket.on('targetLockUpdate', (data) => {
+        setTargetLocks(prev => {
+          const next = { ...prev };
+          if (data.locked) {
+            next[data.targetTeamId] = { attackerId: data.attackerId };
+          } else {
+            delete next[data.targetTeamId];
+          }
+          return next;
+        });
+      });
+
+      // Defender events: wrong answers/codes during heist
+      socket.on('heistWrongAnswer', (data) => {
+        setDefenderHeistEvents(prev => [...prev, { type: 'wrongAnswer', ...data, timestamp: Date.now() }]);
+        setNotification({
+          type: 'danger',
+          message: `🚨 ${data.message}`
+        });
+      });
+
+      socket.on('heistWrongCode', (data) => {
+        setDefenderHeistEvents(prev => [...prev, { type: 'wrongCode', ...data, timestamp: Date.now() }]);
+        setNotification({
+          type: 'warning',
+          message: '🔐 Attacker entered wrong safe code!'
+        });
+      });
+
+      socket.on('heistTimerFreeze', (data) => {
+        setNotification({
+          type: 'danger',
+          message: `❄️ Defender froze your timer! -${data.reduction}s`
+        });
+      });
+
+      socket.on('disqualified', () => {
+        setFullscreenDisqualified(true);
+      });
+
+      socket.on('undisqualified', () => {
+        setFullscreenDisqualified(false);
+      });
+
       return () => {
         socket.off('leaderboardUpdate');
         socket.off('teamUpdate');
@@ -113,6 +161,12 @@ export function GameProvider({ children }) {
         socket.off('announcement');
         socket.off('levelChange');
         socket.off('heistStarted');
+        socket.off('targetLockUpdate');
+        socket.off('heistWrongAnswer');
+        socket.off('heistWrongCode');
+        socket.off('heistTimerFreeze');
+        socket.off('disqualified');
+        socket.off('undisqualified');
       };
     }
   }, [socket, updateTeam, team]);
@@ -254,36 +308,73 @@ export function GameProvider({ children }) {
 
   const initiateHeist = async (targetTeamId) => {
     try {
-      const response = await axios.post(`${API_URL}/heist/initiate`, { targetTeamId });
+      const response = await axios.post(
+        `${API_URL}/heist/initiate`, 
+        { targetTeamId },
+        token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
+      );
       return response.data;
     } catch (error) {
-      return { success: false, error: error.response?.data?.error || 'Heist initiation failed' };
+      return { success: false, error: error.response?.data?.error || 'Heist initiation failed', locked: error.response?.data?.locked };
     }
   };
 
   const submitCompoundAnswer = async (heistId, challengeId, answer) => {
     try {
-      const response = await axios.post(`${API_URL}/heist/compound`, {
-        heistId,
-        challengeId,
-        answer
-      });
+      const response = await axios.post(
+        `${API_URL}/heist/compound`,
+        { heistId, challengeId, answer },
+        token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
+      );
       return response.data;
     } catch (error) {
-      return { success: false, error: error.response?.data?.error || 'Submission failed' };
+      return { success: false, error: error.response?.data?.error || 'Submission failed', heistFailed: error.response?.data?.heistFailed };
     }
   };
 
   const submitSafeAnswer = async (heistId, answer) => {
     try {
-      const response = await axios.post(`${API_URL}/heist/safe`, {
-        heistId,
-        answer
-      });
+      const response = await axios.post(
+        `${API_URL}/heist/safe`,
+        { heistId, answer },
+        token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
+      );
       return response.data;
     } catch (error) {
-      return { success: false, error: error.response?.data?.error || 'Submission failed' };
+      return { success: false, error: error.response?.data?.error || 'Submission failed', heistFailed: error.response?.data?.heistFailed };
     }
+  };
+
+  const fetchHeistLocks = async () => {
+    try {
+      const response = await axios.get(
+        `${API_URL}/heist/locks`,
+        token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
+      );
+      if (response.data?.locks) {
+        setTargetLocks(response.data.locks);
+      }
+      return response.data?.locks || {};
+    } catch (error) {
+      return {};
+    }
+  };
+
+  const useDefenderPowerup = async (powerUpType) => {
+    try {
+      const response = await axios.post(
+        `${API_URL}/heist/use-powerup`,
+        { powerUpType },
+        token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
+      );
+      return response.data;
+    } catch (error) {
+      return { success: false, error: error.response?.data?.error || 'Failed to use power-up' };
+    }
+  };
+
+  const clearDefenderHeistEvents = () => {
+    setDefenderHeistEvents([]);
   };
 
   const clearHeistAlert = () => {
@@ -301,6 +392,9 @@ export function GameProvider({ children }) {
     notification,
     eventConfig,
     teamProgress,
+    targetLocks,
+    defenderHeistEvents,
+    fullscreenDisqualified,
     fetchLeaderboard,
     fetchEventConfig,
     fetchTeamProgress,
@@ -309,8 +403,11 @@ export function GameProvider({ children }) {
     initiateHeist,
     submitCompoundAnswer,
     submitSafeAnswer,
+    fetchHeistLocks,
+    useDefenderPowerup,
     clearHeistAlert,
-    clearNotification
+    clearNotification,
+    clearDefenderHeistEvents
   };
 
   return (
