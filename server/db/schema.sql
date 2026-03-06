@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS event_config (
   level2_timer INTEGER NOT NULL DEFAULT 3600 CHECK (level2_timer > 0),
   level3_timer INTEGER NOT NULL DEFAULT 2700 CHECK (level3_timer > 0),
   level4_timer INTEGER NOT NULL DEFAULT 1800 CHECK (level4_timer > 0),
+  level_locks JSONB NOT NULL DEFAULT '{"1": false, "2": false, "3": false}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -154,7 +155,7 @@ CREATE TABLE IF NOT EXISTS heists (
   stage TEXT NOT NULL DEFAULT 'compound' CHECK (stage IN ('compound', 'safe', 'completed')),
   compound_progress JSONB NOT NULL DEFAULT '[]'::jsonb,
   safe_attempts INTEGER NOT NULL DEFAULT 0 CHECK (safe_attempts >= 0),
-  safe_challenge_index INTEGER,
+  safe_challenge_index INTEGER,  -- legacy, no longer used (safe code is generated deterministically)
   time_limit_sec INTEGER NOT NULL CHECK (time_limit_sec > 0),
   start_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   status TEXT NOT NULL CHECK (status IN ('active', 'success', 'failed')),

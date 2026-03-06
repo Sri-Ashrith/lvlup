@@ -133,7 +133,7 @@ const gameState = {
     currentLevel: 1,
     isEventActive: true,
     levelTimers: {
-      1: 30 * 60, // 30 minutes
+      1: 20 * 60, // 20 minutes
       2: 30 * 60, // 30 minutes
       3: 30 * 60  // 30 minutes
     },
@@ -144,6 +144,87 @@ const gameState = {
   levelProgress: {},
   announcements: []
 };
+
+// ── Auto-save infrastructure ─────────────────────────────────────────────
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const SAVE_FILE = path.join(__dirname, 'gamestate-backup.json');
+
+function autoSaveState() {
+  try {
+    const saveData = {
+      teams: gameState.teams,
+      powerUps: gameState.powerUps,
+      levelProgress: gameState.levelProgress,
+      eventConfig: gameState.eventConfig,
+      announcements: gameState.announcements,
+      heists: gameState.heists,
+      fullscreenViolations: gameState.fullscreenViolations,
+      savedAt: new Date().toISOString()
+    };
+    fs.writeFileSync(SAVE_FILE, JSON.stringify(saveData, null, 2));
+    console.log(`[AUTO-SAVE] State saved at ${saveData.savedAt}`);
+  } catch (err) {
+    console.error('[AUTO-SAVE] Failed:', err.message);
+  }
+}
+
+let _saveTimer = null;
+function debouncedSave() {
+  if (_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(autoSaveState, 2000);
+}
+
+// Load saved state on startup (skip on Vercel — filesystem is read-only)
+if (!IS_VERCEL) try {
+  if (fs.existsSync(SAVE_FILE)) {
+    const saved = JSON.parse(fs.readFileSync(SAVE_FILE, 'utf-8'));
+    if (saved.teams && Object.keys(saved.teams).length > 0) {
+      console.log(`[AUTO-SAVE] Restoring state from ${saved.savedAt}`);
+      gameState.teams = saved.teams;
+      gameState.powerUps = saved.powerUps || gameState.powerUps;
+      gameState.levelProgress = saved.levelProgress || gameState.levelProgress;
+      gameState.eventConfig = saved.eventConfig || gameState.eventConfig;
+      gameState.announcements = saved.announcements || gameState.announcements;
+      gameState.heists = saved.heists || gameState.heists;
+      gameState.fullscreenViolations = saved.fullscreenViolations || gameState.fullscreenViolations;
+      // Initialise powerUps map for any team missing an entry
+      Object.keys(gameState.teams).forEach(tid => {
+        if (!gameState.powerUps[tid]) gameState.powerUps[tid] = [];
+      });
+    }
+  }
+} catch (err) {
+  console.warn('[AUTO-SAVE] Could not restore state:', err.message);
+}
+
+// Auto-save every 60 seconds + debounced save on every POST (disable on serverless)
+if (!IS_VERCEL) {
+  setInterval(autoSaveState, 60000);
+
+  // Middleware: trigger debounced save after every successful mutation
+  app.use((req, res, next) => {
+    if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' || req.method === 'DELETE') {
+      res.on('finish', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          debouncedSave();
+        }
+      });
+    }
+    next();
+  });
+}
+
+// Graceful shutdown — save state before exit
+function gracefulShutdown(signal) {
+  console.log(`\n[SHUTDOWN] ${signal} received — saving state...`);
+  autoSaveState();
+  process.exit(0);
+}
+if (!IS_VERCEL) {
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+}
 
 // Power-up definitions
 const POWER_UPS = {
@@ -259,15 +340,93 @@ const challenges = {
         reward: 250
       }
     ],
-    // Safe Puzzles — 4 image-based pseudocode puzzles
-    // All 4 are used every heist (shuffled order). Each puzzle output = one character of the 4-char safe code.
-    // The last character (position 4) is revealed as a hint after viewing all puzzles.
-    // Players figure out the other 3 outputs and try permutations to find the correct order (6 tries = 3!).
+    // Safe Puzzle Pool — each puzzle outputs ONE alphanumeric character
+    // Server picks 4 random puzzles per heist → their answers form the 4-char safe code
+    // ALPHA convention: 0-indexed → A=0, B=1, C=2, ...
     safePuzzles: [
-      { id: 'sp_1', answer: 'E', image: '/safe/puzzle_1.png' },
-      { id: 'sp_2', answer: '6', image: '/safe/puzzle_2.png' },
-      { id: 'sp_3', answer: 'A', image: '/safe/puzzle_3.png' },
-      { id: 'sp_4', answer: '8', image: '/safe/puzzle_4.png' }
+      // ── DIGIT PUZZLES ──
+      {
+        id: 'sp_d0', answer: '0',
+        code: 'x ← 5\ny ← 3\nz ← (x + y) mod (x - y)\nprint z'
+      },
+      {
+        id: 'sp_d1', answer: '1',
+        code: 'x ← 10\nwhile x > 3 do\n    x ← x - 3\nprint x'
+      },
+      {
+        id: 'sp_d2', answer: '2',
+        code: 'x ← 0\nfor i from 1 to 4 do\n    x ← x + i\nprint x mod 8'
+      },
+      {
+        id: 'sp_d3', answer: '3',
+        code: 'sum ← 0\nfor i from 1 to 5 do\n    if i mod 2 = 1 then\n        sum ← sum + i\n    else\n        sum ← sum - i\nprint sum'
+      },
+      {
+        id: 'sp_d4', answer: '4',
+        code: 'x ← 0\nfor i from 1 to 5 do\n    if i mod 3 ≠ 0 then\n        x ← x + 1\nprint x'
+      },
+      {
+        id: 'sp_d5', answer: '5',
+        code: 'a ← 1\nb ← 1\nfor i from 1 to 3 do\n    c ← a + b\n    a ← b\n    b ← c\nprint b'
+      },
+      {
+        id: 'sp_d6', answer: '6',
+        code: 'x ← 0\nfor i from 1 to 4 do\n    if i mod 2 = 0 then\n        x ← x + i\nprint x'
+      },
+      {
+        id: 'sp_d7', answer: '7',
+        code: 'x ← 1\nfor i from 1 to 3 do\n    x ← x * 2\nx ← x - 1\nprint x'
+      },
+      {
+        id: 'sp_d8', answer: '8',
+        code: 'x ← 2\ny ← 3\nfor i from 1 to 3 do\n    x ← x + y\n    y ← y - 1\nprint x'
+      },
+      {
+        id: 'sp_d9', answer: '9',
+        code: 'count ← 0\nfor i from 1 to 3 do\n    for j from 1 to 3 do\n        count ← count + 1\nprint count'
+      },
+      // ── LETTER PUZZLES ──
+      // Convention: ALPHA[0]='A', ALPHA[1]='B', ..., ALPHA[25]='Z'
+      {
+        id: 'sp_la', answer: 'A',
+        code: 'ALPHA ← "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\nx ← 7\ny ← 4\nz ← 3\nindex ← x - y - z\nprint ALPHA[index]'
+      },
+      {
+        id: 'sp_lb', answer: 'B',
+        code: 'ALPHA ← "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\nn ← 0\nfor i from 1 to 3 do\n    if i mod 2 = 1 then\n        n ← n + 1\n    else\n        n ← n - 1\nprint ALPHA[n]'
+      },
+      {
+        id: 'sp_lc', answer: 'C',
+        code: 'ALPHA ← "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\nx ← 15\nindex ← x mod 13\nprint ALPHA[index]'
+      },
+      {
+        id: 'sp_ld', answer: 'D',
+        code: 'ALPHA ← "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\ncount ← 0\nfor i from 2 to 5 do\n    if i mod 2 = 0 then\n        count ← count + 1\nindex ← count + 1\nprint ALPHA[index]'
+      },
+      {
+        id: 'sp_le', answer: 'E',
+        code: 'ALPHA ← "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\nx ← 20\ny ← 4\nindex ← (x / y) - 1\nprint ALPHA[index]'
+      },
+      {
+        id: 'sp_lf', answer: 'F',
+        code: 'ALPHA ← "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\nn ← 0\nfor i from 1 to 5 do\n    n ← n + 1\nprint ALPHA[n]'
+      },
+      {
+        id: 'sp_lg', answer: 'G',
+        code: 'ALPHA ← "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\nx ← 3\ny ← 2\nindex ← x * y\nprint ALPHA[index]'
+      },
+      {
+        id: 'sp_lh', answer: 'H',
+        code: 'ALPHA ← "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\nsum ← 0\nfor i from 1 to 4 do\n    sum ← sum + i\nindex ← sum - 3\nprint ALPHA[index]'
+      },
+      {
+        id: 'sp_lj', answer: 'J',
+        code: 'ALPHA ← "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\nn ← 49\nwhile n >= 10 do\n    n ← n - 10\nprint ALPHA[n]'
+      },
+      {
+        id: 'sp_lk', answer: 'K',
+        code: 'ALPHA ← "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\nx ← 2\nfor i from 1 to 3 do\n    x ← x + (i * 2)\nx ← x - 4\nprint ALPHA[x]'
+      }
     ]
   }
 };
@@ -306,10 +465,10 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   
-  if (!token) return res.status(401).json({ error: 'No token provided. Please log in again.' });
-
+  if (!token) return res.sendStatus(401);
+  
   jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Session expired or invalid. Please log in again.' });
+    if (err) return res.sendStatus(403);
     req.user = user;
     next();
   });
@@ -730,7 +889,7 @@ app.post('/api/heist/compound', authenticateToken, (req, res) => {
         stageComplete: true, 
         nextStage: 'safe',
         safeChallenge: {
-          puzzles: selectedPuzzles.map(p => ({ id: p.id, image: p.image })),
+          puzzles: selectedPuzzles.map(p => ({ id: p.id, code: p.code })),
           hint: safeCode[3],       // Reveal last character
           hintIndex: 3,
           maxAttempts: 6
@@ -1208,50 +1367,6 @@ if (!IS_VERCEL) io.on('connection', (socket) => {
     console.log('Client disconnected:', socket.id);
   });
 });
-
-// PERF-01: Best-effort periodic auto-save to JSON file (no database per constraints)
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const SAVE_FILE = path.join(__dirname, 'gamestate-backup.json');
-
-function autoSaveState() {
-  try {
-    const saveData = {
-      teams: gameState.teams,
-      powerUps: gameState.powerUps,
-      levelProgress: gameState.levelProgress,
-      eventConfig: gameState.eventConfig,
-      announcements: gameState.announcements,
-      savedAt: new Date().toISOString()
-    };
-    fs.writeFileSync(SAVE_FILE, JSON.stringify(saveData, null, 2));
-    console.log(`[AUTO-SAVE] State saved at ${saveData.savedAt}`);
-  } catch (err) {
-    console.error('[AUTO-SAVE] Failed:', err.message);
-  }
-}
-
-// Auto-save every 60 seconds (disable on serverless)
-if (!IS_VERCEL) {
-  setInterval(autoSaveState, 60000);
-}
-
-// Load saved state on startup if available (skip on Vercel — filesystem is read-only)
-if (!IS_VERCEL) try {
-  if (fs.existsSync(SAVE_FILE)) {
-    const saved = JSON.parse(fs.readFileSync(SAVE_FILE, 'utf-8'));
-    if (saved.teams && Object.keys(saved.teams).length > 0) {
-      console.log(`[AUTO-SAVE] Restoring state from ${saved.savedAt}`);
-      gameState.teams = saved.teams;
-      gameState.powerUps = saved.powerUps || gameState.powerUps;
-      gameState.levelProgress = saved.levelProgress || gameState.levelProgress;
-      gameState.eventConfig = saved.eventConfig || gameState.eventConfig;
-      gameState.announcements = saved.announcements || gameState.announcements;
-    }
-  }
-} catch (err) {
-  console.warn('[AUTO-SAVE] Could not restore state:', err.message);
-}
 
 const PORT = process.env.PORT || 3001;
 

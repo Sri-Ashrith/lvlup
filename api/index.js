@@ -26,9 +26,6 @@ function setCors(req, res) {
 // ── Power-ups (static definitions) ─────────────────────────────────────────
 const POWER_UPS = {
   GUARDIAN_ANGEL: { id: 'GUARDIAN_ANGEL', name: 'Guardian Angel', description: 'Reduces enemy heist time by 30 seconds', effect: { heistTimeReduction: 30 } },
-  DOUBLE_CASH:   { id: 'DOUBLE_CASH',   name: 'Double Cash',    description: 'Next successful challenge gives 2x cash', effect: { cashMultiplier: 2 } },
-  SHIELD:        { id: 'SHIELD',        name: 'Shield',         description: 'Blocks one incoming heist attempt', effect: { blockHeist: true } },
-  HINT_MASTER:   { id: 'HINT_MASTER',   name: 'Hint Master',    description: 'Reveals hint for current challenge', effect: { revealHint: true } },
   TIME_FREEZE:   { id: 'TIME_FREEZE',   name: 'Time Freeze',    description: 'Adds 60 seconds to current challenge timer', effect: { addTime: 60 } }
 };
 
@@ -130,12 +127,13 @@ const challenges = {
         reward: 250
       }
     ],
-    safe: [
-      { id: 's_1', question: 'What is the output?\n\nx = 7\ny = 3\nresult = (x * y) + (x - y)\nprint(result)', answer: '2524', codes: ['2524', '1847', '3091', '4762'], correctIndex: 0, attempts: 3 },
-      { id: 's_2', question: 'What is the output?\n\na = 15\nb = 4\nresult = (a % b) * 1000 + (a // b) * 100 + (a + b)\nprint(result)', answer: '3319', codes: ['3319', '4527', '1893', '7061'], correctIndex: 0, attempts: 3 },
-      { id: 's_3', question: 'What is the output?\n\nn = 5\nresult = 1\nfor i in range(1, n+1):\n    result *= i\nprint(result % 10000)', answer: '0120', codes: ['0120', '5040', '3628', '7200'], correctIndex: 0, attempts: 3 },
-      { id: 's_4', question: 'What is the output?\n\ndef mystery(n):\n    if n <= 1: return n\n    return mystery(n-1) + mystery(n-2)\nprint(mystery(10))', answer: '0055', codes: ['0055', '0089', '0034', '0144'], correctIndex: 0, attempts: 3 },
-      { id: 's_5', question: 'What is the output?\n\narr = [3, 1, 4, 1, 5, 9, 2, 6]\narr.sort()\nresult = arr[0]*1000 + arr[1]*100 + arr[-2]*10 + arr[-1]\nprint(result)', answer: '1169', codes: ['1169', '2359', '3469', '4579'], correctIndex: 0, attempts: 3 }
+    // Safe Puzzles — 4 image-based pseudocode puzzles
+    // All 4 are used every heist (shuffled order). Each output = one character of 4-char safe code.
+    safePuzzles: [
+      { id: 'sp_1', answer: 'E', image: '/safe/puzzle_1.png' },
+      { id: 'sp_2', answer: '6', image: '/safe/puzzle_2.png' },
+      { id: 'sp_3', answer: 'A', image: '/safe/puzzle_3.png' },
+      { id: 'sp_4', answer: '8', image: '/safe/puzzle_4.png' }
     ]
   }
 };
@@ -209,19 +207,10 @@ async function checkAndGrantPowerUps(teamId) {
   // Count total level1 completed
   const { count: l1Count } = await supabase.from('level_progress').select('*', { count: 'exact', head: true }).eq('team_id', teamId).eq('level_key', 'level1');
 
-  if ((l1Count || 0) >= 3 && !completed.includes('first_three')) {
-    await supabase.from('team_powerups').insert({ team_id: teamId, powerup_id: 'HINT_MASTER' });
-    await supabase.from('teams').update({ completed_challenges: [...completed, 'first_three'] }).eq('id', teamId);
-  }
   if (team.cash >= 2000 && !completed.includes('cash_2k')) {
     await supabase.from('team_powerups').insert({ team_id: teamId, powerup_id: 'GUARDIAN_ANGEL' });
     const fresh = (await getTeamById(teamId)).completed_challenges || [];
     await supabase.from('teams').update({ completed_challenges: [...fresh, 'cash_2k'] }).eq('id', teamId);
-  }
-  if (team.cash >= 5000 && !completed.includes('cash_5k')) {
-    await supabase.from('team_powerups').insert({ team_id: teamId, powerup_id: 'SHIELD' });
-    const fresh = (await getTeamById(teamId)).completed_challenges || [];
-    await supabase.from('teams').update({ completed_challenges: [...fresh, 'cash_5k'] }).eq('id', teamId);
   }
 }
 
@@ -332,13 +321,12 @@ async function handleRequest(req, res) {
     if (!challenges[key]?.[zone]) return json(res, 404, { error: 'Zone not found' });
     const completed = await getCompletedChallenges(user.teamId, key, zone);
     const pups = await getTeamPowerUps(user.teamId);
-    const hasHint = pups.some(p => p.id === 'HINT_MASTER');
     // Randomize question order per team using seeded shuffle
     const allChallenges = seededShuffle(challenges[key][zone], user.teamId);
     const list = allChallenges
       .filter(c => !completed.includes(c.id))
-      .map(c => ({ ...c, answer: undefined, acceptedAnswers: undefined, hint: hasHint ? c.hint : undefined }));
-    const responseData = { challenges: list, completed, hasHintMaster: hasHint };
+      .map(c => ({ ...c, answer: undefined, acceptedAnswers: undefined, hint: undefined }));
+    const responseData = { challenges: list, completed };
 
     // For Level 2, include cross-section progress so frontend can enforce limits
     if (level === '2') {
@@ -396,16 +384,6 @@ async function handleRequest(req, res) {
 
     if (correct) {
       let reward = Math.round(ch.reward * (eventConfig.difficultyMultiplier || 1));
-
-      // Check DOUBLE_CASH power-up
-      const pups = await getTeamPowerUps(teamId);
-      const dc = pups.find(p => p.id === 'DOUBLE_CASH');
-      if (dc) {
-        reward *= 2;
-        // Remove one DOUBLE_CASH from DB
-        const { data: dcRow } = await supabase.from('team_powerups').select('id').eq('team_id', teamId).eq('powerup_id', 'DOUBLE_CASH').limit(1).single();
-        if (dcRow) await supabase.from('team_powerups').delete().eq('id', dcRow.id);
-      }
 
       const newCash = team.cash + reward;
       await supabase.from('teams').update({ cash: newCash }).eq('id', teamId);
@@ -481,13 +459,6 @@ async function handleRequest(req, res) {
     const { data: activeAttacker } = await supabase.from('heists').select('id').eq('attacker_id', attackerId).eq('status', 'active').limit(1);
     if (activeAttacker?.length) return json(res, 400, { error: 'You already have an active heist' });
 
-    // Shield check
-    const { data: shieldRow } = await supabase.from('team_powerups').select('id').eq('team_id', targetTeamId).eq('powerup_id', 'SHIELD').limit(1).single();
-    if (shieldRow) {
-      await supabase.from('team_powerups').delete().eq('id', shieldRow.id);
-      return json(res, 200, { blocked: true, message: 'Target had a shield!' });
-    }
-
     const eventConfig = await getEventConfig();
     let timeLimit = eventConfig.heistTimeLimit; // 600s = 10 minutes
 
@@ -544,18 +515,21 @@ async function handleRequest(req, res) {
       const totalNeeded = (heist.compound_challenge_ids || []).length || challenges.level3.compound.length;
 
       if (progress.length >= totalNeeded) {
-        const si = Math.floor(Math.random() * challenges.level3.safe.length);
-        await supabase.from('heists').update({ compound_progress: progress, stage: 'safe', safe_challenge_index: si }).eq('id', heist.id);
-        const safeChallenge = challenges.level3.safe[si];
+        // Pick 4 puzzles (shuffled) to form smart safe code
+        const shuffled = seededShuffle([...challenges.level3.safePuzzles], heist.id + heist.attacker_id);
+        const selectedPuzzles = shuffled.slice(0, 4);
+        const safeCode = selectedPuzzles.map(p => p.answer).join('').toUpperCase();
+        await supabase.from('heists').update({ compound_progress: progress, stage: 'safe', safe_attempts: 0 }).eq('id', heist.id);
         return json(res, 200, {
           success: true,
           correct: true,
           stageComplete: true,
           nextStage: 'safe',
           safeChallenge: {
-            id: safeChallenge.id,
-            question: safeChallenge.question,
-            codes: safeChallenge.codes
+            puzzles: selectedPuzzles.map(p => ({ id: p.id, image: p.image })),
+            hint: safeCode[3],
+            hintIndex: 3,
+            maxAttempts: 6
           }
         });
       }
@@ -593,8 +567,10 @@ async function handleRequest(req, res) {
       return json(res, 400, { error: 'Time expired', heistFailed: true });
     }
 
-    const sc = challenges.level3.safe[heist.safe_challenge_index ?? 0];
-    const correct = body.answer.toLowerCase().trim() === sc.answer.toLowerCase().trim();
+    const correct = body.answer.toUpperCase().trim() === (() => {
+      const shuffled = seededShuffle([...challenges.level3.safePuzzles], heist.id + heist.attacker_id);
+      return shuffled.slice(0, 4).map(p => p.answer).join('').toUpperCase();
+    })();
     const newAttempts = (heist.safe_attempts || 0) + 1;
     await supabase.from('heists').update({ safe_attempts: newAttempts }).eq('id', heist.id);
 
@@ -621,12 +597,12 @@ async function handleRequest(req, res) {
       return json(res, 200, { success: true, heistSuccess: true, stolenAmount: stolen, moneyPercent, guardianReduction });
     }
 
-    if (newAttempts >= 3) {
+    if (newAttempts >= 6) {
       const amt = await failHeistDb(heist);
       return json(res, 200, { success: true, heistSuccess: false, transferAmount: amt });
     }
 
-    return json(res, 200, { success: true, correct: false, attemptsRemaining: 3 - newAttempts });
+    return json(res, 200, { success: true, correct: false, attemptsRemaining: 6 - newAttempts });
   }
 
   // ── Fullscreen enforcement routes ─────────────────────────────────────
@@ -706,9 +682,11 @@ async function handleRequest(req, res) {
 
   if (req.method === 'POST' && path === '/admin/set-level') {
     const body = await parseBody(req);
-    await supabase.from('event_config').update({ current_level: body.level }).eq('id', 1);
-    await supabase.from('teams').update({ current_level: body.level }).neq('id', '00000000-0000-0000-0000-000000000000');
-    return json(res, 200, { success: true, currentLevel: body.level });
+    const level = body.level;
+    if (level < 0 || level > 4) return json(res, 400, { error: 'Invalid level (0-4)' });
+    await supabase.from('event_config').update({ current_level: level }).eq('id', 1);
+    await supabase.from('teams').update({ current_level: level }).neq('id', '00000000-0000-0000-0000-000000000000');
+    return json(res, 200, { success: true, currentLevel: level });
   }
 
   if (req.method === 'POST' && path === '/admin/delete-team') {

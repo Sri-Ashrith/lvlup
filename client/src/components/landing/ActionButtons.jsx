@@ -98,15 +98,6 @@ export default function ActionButtons({ onTeamLogin, onAdminLogin }) {
           >
             Enter the Underground
           </GlitchButton>
-
-          <GlitchButton
-            icon={Shield}
-            onClick={onAdminLogin}
-            variant="danger"
-            delay={0.2}
-          >
-            Access Control Room
-          </GlitchButton>
         </div>
 
         {/* Bottom flicker text */}

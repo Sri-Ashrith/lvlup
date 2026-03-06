@@ -30,7 +30,8 @@ import {
   Star,
   Megaphone,
   Ban,
-  CheckCircle
+  CheckCircle,
+  Lock
 } from 'lucide-react';
 import Leaderboard from '../components/Leaderboard';
 
@@ -58,9 +59,6 @@ export default function AdminPanel() {
 
   const POWER_UPS = [
     { id: 'GUARDIAN_ANGEL', name: 'Guardian Angel' },
-    { id: 'DOUBLE_CASH', name: 'Double Cash' },
-    { id: 'SHIELD', name: 'Shield' },
-    { id: 'HINT_MASTER', name: 'Hint Master' },
     { id: 'TIME_FREEZE', name: 'Time Freeze' },
   ];
 
@@ -397,8 +395,12 @@ export default function AdminPanel() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       <span className="text-gray-400 font-mono text-sm">Active Level:</span>
-                      <span className="px-3 py-1 rounded-full bg-gta-yellow/20 border border-gta-yellow text-gta-yellow font-gta-heading text-sm">
-                        {eventState?.eventConfig?.currentLevel || 1}
+                      <span className={`px-3 py-1 rounded-full font-gta-heading text-sm ${
+                        eventState?.eventConfig?.currentLevel === 0
+                          ? 'bg-gta-red/20 border border-gta-red text-gta-red'
+                          : 'bg-gta-yellow/20 border border-gta-yellow text-gta-yellow'
+                      }`}>
+                        {eventState?.eventConfig?.currentLevel === 0 ? 'All Locked' : (eventState?.eventConfig?.currentLevel || 1)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-gta-yellow/80 font-mono text-xs">
@@ -406,7 +408,7 @@ export default function AdminPanel() {
                       Live Unlock
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-2 mb-3">
                     {[1, 2, 3].map((level) => (
                       <button
                         key={level}
@@ -427,6 +429,23 @@ export default function AdminPanel() {
                       </button>
                     ))}
                   </div>
+                  <button
+                    onClick={() => handleSetLevel(0)}
+                    disabled={isLoading}
+                    className={`gta-button w-full py-3 border-gta-red/50 hover:border-gta-red hover:bg-gta-red/20 transition-colors ${
+                      eventState?.eventConfig?.currentLevel === 0
+                        ? 'border-gta-red bg-gta-red/20 shadow-[0_0_20px_rgba(239,68,68,0.35)] relative'
+                        : ''
+                    }`}
+                  >
+                    <Lock className="w-4 h-4 inline mr-2" />
+                    Lock All Levels
+                    {eventState?.eventConfig?.currentLevel === 0 && (
+                      <span className="absolute -top-2 -right-2 text-[10px] px-2 py-0.5 rounded-full bg-gta-red text-white font-bold">
+                        Locked
+                      </span>
+                    )}
+                  </button>
                 </div>
 
                 {/* Announcement */}

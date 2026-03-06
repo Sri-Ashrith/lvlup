@@ -7,12 +7,14 @@ import { Clock, DollarSign, TrendingDown } from 'lucide-react';
  * - 10 minute countdown timer
  * - Animated money percentage meter (100% -> -5%/min)
  */
-export default function HeistTimer({ startTime, timeLimit, onTimeUp }) {
+export default function HeistTimer({ startTime, timeLimit, levelEndTime, onTimeUp }) {
   const [timeLeft, setTimeLeft] = useState(timeLimit);
   const [moneyPercent, setMoneyPercent] = useState(100);
 
   useEffect(() => {
-    const endTime = startTime + timeLimit * 1000;
+    const heistEndTime = startTime + timeLimit * 1000;
+    // Sync with level timer: heist ends at whichever comes first
+    const endTime = levelEndTime ? Math.min(heistEndTime, levelEndTime) : heistEndTime;
 
     const tick = () => {
       const now = Date.now();
@@ -33,7 +35,7 @@ export default function HeistTimer({ startTime, timeLimit, onTimeUp }) {
     tick();
     const interval = setInterval(tick, 500);
     return () => clearInterval(interval);
-  }, [startTime, timeLimit, onTimeUp]);
+  }, [startTime, timeLimit, levelEndTime, onTimeUp]);
 
   const formatTime = (s) => {
     const m = Math.floor(s / 60);

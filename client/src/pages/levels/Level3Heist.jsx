@@ -27,6 +27,8 @@ import CompoundStage from '../../components/heist/CompoundStage';
 import SafeCrackStage from '../../components/heist/SafeCrackStage';
 import DefenderPowerupSystem from '../../components/heist/DefenderPowerupSystem';
 import MoneyPercentageMeter from '../../components/heist/MoneyPercentageMeter';
+import HackerTypewriter from '../../components/heist/HackerTypewriter';
+import LevelTimer from '../../components/LevelTimer';
 
 export default function Level3Heist() {
   const navigate = useNavigate();
@@ -41,12 +43,13 @@ export default function Level3Heist() {
     targetLocks,
     defenderHeistEvents,
     clearDefenderHeistEvents,
-    heistAlert
+    heistAlert,
+    eventConfig
   } = useGame();
   const { playSound } = useSound();
   
   // Core state
-  const [stage, setStage] = useState('select'); // select, compound, safe, result, defending
+  const [stage, setStage] = useState('select'); // select, compound, breached, safe, result, defending
   const [selectedTarget, setSelectedTarget] = useState(null);
   const [heistData, setHeistData] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,10 +60,12 @@ export default function Level3Heist() {
   const [compoundProgress, setCompoundProgress] = useState(0);
   const [compoundWrongCount, setCompoundWrongCount] = useState(0);
   
-  // Safe stage state
-  const [safeChallenge, setSafeChallenge] = useState(null);
-  const [safeCodes, setSafeCodes] = useState([]);
-  const [safeAttempts, setSafeAttempts] = useState(3);
+  // Safe stage state (new puzzle-based system)
+  const [safePuzzles, setSafePuzzles] = useState([]);      // 4 puzzle objects { id, code }
+  const [safeHint, setSafeHint] = useState('?');            // revealed last character
+  const [safeHintIndex, setSafeHintIndex] = useState(3);    // hint position (always 3)
+  const [safeAttempts, setSafeAttempts] = useState(6);     // attempts remaining
+  const [safeMaxAttempts, setSafeMaxAttempts] = useState(6);
   const [safeSuccess, setSafeSuccess] = useState(false);
   
   // Result
@@ -151,36 +156,44 @@ export default function Level3Heist() {
     playSound('click');
     setIsSubmitting(true);
     
-    const response = await submitCompoundAnswer(heistData.heistId, challengeId, answer);
-    
-    if (response.heistFailed) {
-      playSound('error');
-      setResult({ 
-        success: false, 
-        message: response.message || '3 wrong answers! Heist failed!',
-        transferAmount: response.transferAmount
-      });
-      setStage('result');
-    } else if (response.correct) {
-      playSound('success');
-      setCompoundProgress(prev => prev + 1);
+    try {
+      const response = await submitCompoundAnswer(heistData.heistId, challengeId, answer);
       
-      if (response.stageComplete) {
-        // Transition to safe stage
-        setSafeChallenge(response.safeChallenge);
-        setSafeCodes(response.safeChallenge?.codes || []);
-        setSafeAttempts(3);
-        setSafeSuccess(false);
-        setStage('safe');
+      if (response.heistFailed) {
+        playSound('error');
+        setResult({ 
+          success: false, 
+          message: response.message || '3 wrong answers! Heist failed!',
+          transferAmount: response.transferAmount
+        });
+        setStage('result');
+      } else if (response.correct) {
+        playSound('success');
+        setCompoundProgress(prev => prev + 1);
+        
+        if (response.stageComplete) {
+          // Store safe data and transition to breached interstitial
+          const sc = response.safeChallenge;
+          setSafePuzzles(sc?.puzzles || []);
+          setSafeHint(sc?.hint || '?');
+          setSafeHintIndex(sc?.hintIndex ?? 3);
+          setSafeAttempts(sc?.maxAttempts || 6);
+          setSafeMaxAttempts(sc?.maxAttempts || 6);
+          setSafeSuccess(false);
+          setStage('breached');
+        } else {
+          setCurrentCompoundIndex(prev => prev + 1);
+        }
       } else {
-        setCurrentCompoundIndex(prev => prev + 1);
+        playSound('error');
+        setCompoundWrongCount(response.wrongCount || (compoundWrongCount + 1));
       }
-    } else {
+    } catch (err) {
+      console.error('Compound submit error:', err);
       playSound('error');
-      setCompoundWrongCount(response.wrongCount || (compoundWrongCount + 1));
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    setIsSubmitting(false);
   };
 
   // Submit safe code
@@ -190,34 +203,39 @@ export default function Level3Heist() {
     playSound('click');
     setIsSubmitting(true);
     
-    const response = await submitSafeAnswer(heistData.heistId, code);
-    
-    if (response.heistSuccess === true) {
-      playSound('cash');
-      setSafeSuccess(true);
-      setTimeout(() => {
+    try {
+      const response = await submitSafeAnswer(heistData.heistId, code);
+      
+      if (response.heistSuccess === true) {
+        playSound('cash');
+        setSafeSuccess(true);
+        setTimeout(() => {
+          setResult({ 
+            success: true, 
+            message: `Heist successful! You stole $${response.stolenAmount?.toLocaleString()}!`,
+            stolenAmount: response.stolenAmount,
+            moneyPercent: response.moneyPercent
+          });
+          setStage('result');
+        }, 1500);
+      } else if (response.heistSuccess === false) {
+        playSound('error');
         setResult({ 
-          success: true, 
-          message: `Heist successful! You stole $${response.stolenAmount?.toLocaleString()}!`,
-          stolenAmount: response.stolenAmount,
-          moneyPercent: response.moneyPercent
+          success: false, 
+          message: `Heist failed! You lost $${response.transferAmount?.toLocaleString()} to the defender.`,
+          transferAmount: response.transferAmount
         });
         setStage('result');
-      }, 1500);
-    } else if (response.heistSuccess === false) {
+      } else {
+        playSound('error');
+        setSafeAttempts(response.attemptsRemaining || (safeAttempts - 1));
+      }
+    } catch (err) {
+      console.error('Safe submit error:', err);
       playSound('error');
-      setResult({ 
-        success: false, 
-        message: `Heist failed! You lost $${response.transferAmount?.toLocaleString()} to the defender.`,
-        transferAmount: response.transferAmount
-      });
-      setStage('result');
-    } else {
-      playSound('error');
-      setSafeAttempts(response.attemptsRemaining || (safeAttempts - 1));
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    setIsSubmitting(false);
   };
 
   // Defender powerup usage
@@ -239,9 +257,11 @@ export default function Level3Heist() {
     setCurrentCompoundIndex(0);
     setCompoundProgress(0);
     setCompoundWrongCount(0);
-    setSafeChallenge(null);
-    setSafeCodes([]);
-    setSafeAttempts(3);
+    setSafePuzzles([]);
+    setSafeHint('?');
+    setSafeHintIndex(3);
+    setSafeAttempts(6);
+    setSafeMaxAttempts(6);
     setSafeSuccess(false);
     setResult(null);
     setDefenderWrongAnswers(0);
@@ -251,7 +271,7 @@ export default function Level3Heist() {
     clearDefenderHeistEvents();
   };
 
-  const isInHeist = stage === 'compound' || stage === 'safe';
+  const isInHeist = stage === 'compound' || stage === 'breached' || stage === 'safe';
 
   return (
     <div className="min-h-screen pb-24">
@@ -275,6 +295,7 @@ export default function Level3Heist() {
             </button>
             
             <div className="flex items-center gap-4">
+              <LevelTimer levelNumber={3} />
               {isInHeist && heistData && (
                 <MoneyPercentageMeter startTime={heistData.startTime} compact />
               )}
@@ -301,7 +322,8 @@ export default function Level3Heist() {
           <p className="text-gray-500 font-condensed tracking-wider uppercase text-sm">
             {stage === 'select' && 'Choose a target and attempt to steal their cash'}
             {stage === 'compound' && 'Stage 1: Enter the Compound — Answer questions to breach security'}
-            {stage === 'safe' && 'Stage 2: Crack the Safe — Solve the puzzle and enter the code'}
+            {stage === 'breached' && 'Stage 1 Complete — Compound Breached'}
+            {stage === 'safe' && 'Stage 2: Crack the Safe — Solve the puzzles and enter the code'}
             {stage === 'result' && 'Heist Complete'}
             {stage === 'defending' && 'Your vault is under attack!'}
           </p>
@@ -379,8 +401,51 @@ export default function Level3Heist() {
             </motion.div>
           )}
 
+          {/* BREACHED TRANSITION */}
+          {stage === 'breached' && (
+            <motion.div
+              key="breached"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="max-w-lg mx-auto text-center"
+            >
+              <div className="gta-card p-10 border-gta-green/30 bg-gta-green/5">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', damping: 12, delay: 0.2 }}
+                >
+                  <Unlock className="w-20 h-20 text-gta-green mx-auto mb-6" />
+                </motion.div>
+
+                <HackerTypewriter
+                  lines={[
+                    { text: '> COMPOUND BREACHED!', className: 'text-3xl font-digital text-gta-green mb-3 uppercase tracking-wider', delay: 400 },
+                    { text: "> You've made it through the security compound.", className: 'text-gray-400 font-mono text-sm mb-2', delay: 1200 },
+                    { text: '> Now crack the safe to steal the money.', className: 'text-gray-300 font-mono text-base mb-1', delay: 2400 },
+                    { text: '> Solve the pseudo-code puzzles to discover the 4-character safe code.', className: 'text-gray-300 font-mono text-base mb-8', delay: 3600 },
+                  ]}
+                  charSpeed={30}
+                  onComplete={() => {}}
+                />
+
+                <motion.button
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 6.5 }}
+                  onClick={() => { playSound('click'); setStage('safe'); }}
+                  className="gta-button px-8 py-4 text-lg"
+                >
+                  <Lock className="w-5 h-5 inline mr-2" />
+                  Proceed to Stage 2 — Crack the Safe
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+
           {/* SAFE CRACKING STAGE */}
-          {stage === 'safe' && safeChallenge && (
+          {stage === 'safe' && safePuzzles.length > 0 && (
             <motion.div
               key="safe"
               initial={{ opacity: 0 }}
@@ -388,9 +453,11 @@ export default function Level3Heist() {
               exit={{ opacity: 0 }}
             >
               <SafeCrackStage
-                challenge={safeChallenge}
-                codes={safeCodes}
+                puzzles={safePuzzles}
+                hint={safeHint}
+                hintIndex={safeHintIndex}
                 attemptsRemaining={safeAttempts}
+                maxAttempts={safeMaxAttempts}
                 onSubmit={handleSafeSubmit}
                 isSubmitting={isSubmitting}
                 success={safeSuccess}
@@ -492,12 +559,6 @@ export default function Level3Heist() {
               
               <div className="flex gap-3 justify-center mt-8">
                 <button
-                  onClick={() => { resetHeist(); }}
-                  className="gta-button px-6 py-3"
-                >
-                  Try Another Heist
-                </button>
-                <button
                   onClick={() => navigate('/dashboard')}
                   className="gta-button gta-button-danger px-6 py-3"
                 >
@@ -514,6 +575,11 @@ export default function Level3Heist() {
         <HeistTimer
           startTime={heistData.startTime}
           timeLimit={heistData.timeLimit}
+          levelEndTime={
+            eventConfig?.levelStartTime && eventConfig?.levelTimers?.[3]
+              ? eventConfig.levelStartTime + eventConfig.levelTimers[3] * 1000
+              : null
+          }
           onTimeUp={handleTimeUp}
         />
       )}

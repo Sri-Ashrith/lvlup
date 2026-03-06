@@ -1,19 +1,13 @@
 import { motion } from 'framer-motion';
-import { Shield, Zap, Clock, Eye, DollarSign } from 'lucide-react';
+import { Shield, Zap, Clock } from 'lucide-react';
 
 const POWER_UP_ICONS = {
   GUARDIAN_ANGEL: Shield,
-  DOUBLE_CASH: DollarSign,
-  SHIELD: Shield,
-  HINT_MASTER: Eye,
   TIME_FREEZE: Clock,
 };
 
 const POWER_UP_COLORS = {
   GUARDIAN_ANGEL: 'from-blue-500 to-cyan-500',
-  DOUBLE_CASH: 'from-green-500 to-emerald-500',
-  SHIELD: 'from-purple-500 to-pink-500',
-  HINT_MASTER: 'from-yellow-500 to-orange-500',
   TIME_FREEZE: 'from-cyan-500 to-blue-500',
 };
 

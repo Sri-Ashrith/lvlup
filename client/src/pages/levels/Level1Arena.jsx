@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useGame } from '../../context/GameContext';
 import { useSound } from '../../context/SoundContext';
+import LevelTimer from '../../components/LevelTimer';
 import { 
   ArrowLeft, 
   Brain, 
@@ -284,9 +285,12 @@ export default function Level1Arena() {
               <span>{activeSubLevel ? 'Sub-Levels' : 'Dashboard'}</span>
             </button>
             
-            <div className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-gta-gold" />
-              <span className="cash-display text-xl">${team?.cash?.toLocaleString() || 0}</span>
+            <div className="flex items-center gap-3">
+              <LevelTimer levelNumber={1} />
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-gta-gold" />
+                <span className="cash-display text-xl">${team?.cash?.toLocaleString() || 0}</span>
+              </div>
             </div>
           </div>
         </div>

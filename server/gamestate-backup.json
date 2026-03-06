@@ -1,7 +1,160 @@
 {
-  "teams": {},
-  "powerUps": {},
-  "levelProgress": {},
+  "teams": {
+    "d022700a-6d87-485a-b9c3-2933073f76dd": {
+      "id": "d022700a-6d87-485a-b9c3-2933073f76dd",
+      "name": "Cyber Wolves",
+      "accessCode": "GDGTEAM01",
+      "cash": 157,
+      "currentLevel": 3,
+      "completedChallenges": [],
+      "powerUps": [],
+      "heistStatus": "none",
+      "isOnline": true,
+      "lastActive": "2026-03-06T19:40:20.647Z"
+    },
+    "217c8826-91ef-4c3e-b12e-500b8f08b820": {
+      "id": "217c8826-91ef-4c3e-b12e-500b8f08b820",
+      "name": "Digital Pirates",
+      "accessCode": "GDGTEAM02",
+      "cash": 343,
+      "currentLevel": 3,
+      "completedChallenges": [],
+      "powerUps": [],
+      "heistStatus": "none",
+      "isOnline": true,
+      "lastActive": "2026-03-06T19:24:42.268Z"
+    },
+    "9bea2519-bf31-4822-b64c-d4fc2b237fd8": {
+      "id": "9bea2519-bf31-4822-b64c-d4fc2b237fd8",
+      "name": "Neon Raiders",
+      "accessCode": "GDGTEAM03",
+      "cash": 0,
+      "currentLevel": 3,
+      "completedChallenges": [],
+      "powerUps": [],
+      "heistStatus": "none",
+      "isOnline": false,
+      "lastActive": "2026-03-05T02:33:14.508Z"
+    },
+    "fe7ccee7-4d3d-4494-879b-e4e258356b35": {
+      "id": "fe7ccee7-4d3d-4494-879b-e4e258356b35",
+      "name": "Shadow Coders",
+      "accessCode": "GDGTEAM04",
+      "cash": 0,
+      "currentLevel": 3,
+      "completedChallenges": [],
+      "powerUps": [],
+      "heistStatus": "none",
+      "isOnline": false,
+      "lastActive": "2026-03-05T02:33:14.508Z"
+    },
+    "9c7dc077-004f-4a92-bea3-040b5b3080f5": {
+      "id": "9c7dc077-004f-4a92-bea3-040b5b3080f5",
+      "name": "Quantum Thieves",
+      "accessCode": "GDGTEAM05",
+      "cash": 0,
+      "currentLevel": 3,
+      "completedChallenges": [],
+      "powerUps": [],
+      "heistStatus": "none",
+      "isOnline": false,
+      "lastActive": "2026-03-05T02:33:14.508Z"
+    }
+  },
+  "powerUps": {
+    "d022700a-6d87-485a-b9c3-2933073f76dd": [],
+    "217c8826-91ef-4c3e-b12e-500b8f08b820": [],
+    "9bea2519-bf31-4822-b64c-d4fc2b237fd8": [],
+    "fe7ccee7-4d3d-4494-879b-e4e258356b35": [],
+    "9c7dc077-004f-4a92-bea3-040b5b3080f5": []
+  },
+  "levelProgress": {
+    "d022700a-6d87-485a-b9c3-2933073f76dd": {
+      "level1": {
+        "logo": [],
+        "aihuman": [],
+        "reasoning": []
+      },
+      "level2": {
+        "easy": [],
+        "medium": [],
+        "hard": []
+      },
+      "level3": {
+        "compound": [],
+        "heistTarget": null,
+        "heistStatus": "none"
+      }
+    },
+    "217c8826-91ef-4c3e-b12e-500b8f08b820": {
+      "level1": {
+        "logo": [],
+        "aihuman": [],
+        "reasoning": []
+      },
+      "level2": {
+        "easy": [],
+        "medium": [],
+        "hard": []
+      },
+      "level3": {
+        "compound": [],
+        "heistTarget": null,
+        "heistStatus": "none"
+      }
+    },
+    "9bea2519-bf31-4822-b64c-d4fc2b237fd8": {
+      "level1": {
+        "logo": [],
+        "aihuman": [],
+        "reasoning": []
+      },
+      "level2": {
+        "easy": [],
+        "medium": [],
+        "hard": []
+      },
+      "level3": {
+        "compound": [],
+        "heistTarget": null,
+        "heistStatus": "none"
+      }
+    },
+    "fe7ccee7-4d3d-4494-879b-e4e258356b35": {
+      "level1": {
+        "logo": [],
+        "aihuman": [],
+        "reasoning": []
+      },
+      "level2": {
+        "easy": [],
+        "medium": [],
+        "hard": []
+      },
+      "level3": {
+        "compound": [],
+        "heistTarget": null,
+        "heistStatus": "none"
+      }
+    },
+    "9c7dc077-004f-4a92-bea3-040b5b3080f5": {
+      "level1": {
+        "logo": [],
+        "aihuman": [],
+        "reasoning": []
+      },
+      "level2": {
+        "easy": [],
+        "medium": [],
+        "hard": []
+      },
+      "level3": {
+        "compound": [],
+        "heistTarget": null,
+        "heistStatus": "none"
+      }
+    }
+  },
   "eventConfig": {
     "currentLevel": 3,
     "isEventActive": true,
@@ -10,9 +163,10 @@
       "2": 3600,
       "3": 2700
     },
-    "heistTimeLimit": 180,
-    "difficultyMultiplier": 1
+    "heistTimeLimit": 600,
+    "difficultyMultiplier": 1,
+    "levelStartTime": 1772824601332
   },
   "announcements": [],
-  "savedAt": "2026-03-04T16:26:21.739Z"
+  "savedAt": "2026-03-06T20:46:46.481Z"
 }

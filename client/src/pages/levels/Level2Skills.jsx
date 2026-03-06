@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useGame } from '../../context/GameContext';
 import { useSound } from '../../context/SoundContext';
+import LevelTimer from '../../components/LevelTimer';
 import {
   ArrowLeft,
   DollarSign,
@@ -197,6 +198,7 @@ export default function Level2Skills() {
             </button>
 
             <div className="flex items-center gap-4">
+              <LevelTimer levelNumber={2} />
               <div className="flex items-center gap-2 px-3 py-1 rounded bg-gta-dark/80 border border-gta-purple/30">
                 <Code2 className="w-4 h-4 text-gta-purple" />
                 <span className="font-mono text-sm text-gta-purple">{totalAnswered}/{MAX_TOTAL}</span>

@@ -9,7 +9,6 @@ import {
   Zap, 
   Target, 
   Shield, 
-  Trophy,
   ChevronRight,
   AlertTriangle,
   X,
@@ -21,7 +20,6 @@ import {
   Lock,
   Unlock
 } from 'lucide-react';
-import Leaderboard from '../components/Leaderboard';
 import PowerUpCard from '../components/PowerUpCard';
 import NotificationToast from '../components/NotificationToast';
 import HeistAlert from '../components/HeistAlert';
@@ -31,7 +29,6 @@ export default function TeamDashboard() {
   const { team, logout } = useAuth();
   const { leaderboard, heistAlert, notification, clearHeistAlert, clearNotification, eventConfig, announcements } = useGame();
   const { playSound, toggleMute, isMuted } = useSound();
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   useEffect(() => {
     if (notification) {
@@ -65,7 +62,7 @@ export default function TeamDashboard() {
       subtitle: 'Prove your worth',
       icon: <Target className="w-8 h-8" />,
       color: 'from-green-500 to-emerald-600',
-      unlocked: eventConfig.currentLevel >= 1
+      unlocked: eventConfig.currentLevel === 1
     },
     { 
       id: 2, 
@@ -73,7 +70,7 @@ export default function TeamDashboard() {
       subtitle: 'Choose your path',
       icon: <Zap className="w-8 h-8" />,
       color: 'from-blue-500 to-cyan-600',
-      unlocked: eventConfig.currentLevel >= 2
+      unlocked: eventConfig.currentLevel === 2
     },
     { 
       id: 3, 
@@ -81,7 +78,7 @@ export default function TeamDashboard() {
       subtitle: 'Attack & defend',
       icon: <Skull className="w-8 h-8" />,
       color: 'from-red-500 to-pink-600',
-      unlocked: eventConfig.currentLevel >= 3
+      unlocked: eventConfig.currentLevel === 3
     },
   ];
 
@@ -135,12 +132,6 @@ export default function TeamDashboard() {
                 {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
               </button>
               <button
-                onClick={() => { playSound('click'); setShowLeaderboard(true); }}
-                className="p-2 text-gray-500 hover:text-gta-yellow transition-colors duration-200"
-              >
-                <Trophy className="w-5 h-5" />
-              </button>
-              <button
                 onClick={handleLogout}
                 className="p-2 text-gray-500 hover:text-gta-red transition-colors duration-200"
               >
@@ -174,8 +165,8 @@ export default function TeamDashboard() {
             <div className="flex items-center gap-6 text-center">
               <div>
                 <p className="text-gray-600 text-xs font-condensed tracking-wider uppercase">Level</p>
-                <p className="text-2xl font-bold text-gta-green font-gta-heading">
-                  {eventConfig.currentLevel}
+                <p className={`text-2xl font-bold font-gta-heading ${eventConfig.currentLevel === 0 ? 'text-gta-red' : 'text-gta-green'}`}>
+                  {eventConfig.currentLevel === 0 ? '—' : eventConfig.currentLevel}
                 </p>
               </div>
               <div className="h-10 w-px bg-gta-green/20" />
@@ -328,42 +319,7 @@ export default function TeamDashboard() {
         )}
       </main>
 
-      {/* Leaderboard Modal */}
-      <AnimatePresence>
-        {showLeaderboard && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
-            onClick={() => setShowLeaderboard(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl max-h-[80vh] overflow-y-auto"
-            >
-              <div className="gta-card p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-white uppercase tracking-[3px] flex items-center gap-2" style={{ fontFamily: "'Pricedown', 'Impact', sans-serif" }}>
-                    <Trophy className="w-6 h-6 text-gta-yellow" />
-                    Leaderboard
-                  </h2>
-                  <button
-                    onClick={() => setShowLeaderboard(false)}
-                    className="p-2 text-gray-400 hover:text-white transition-colors"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
-                <Leaderboard data={leaderboard} currentTeamId={team?.id} />
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
     </div>
   );
 }

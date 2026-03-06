@@ -55,7 +55,7 @@ export function GameProvider({ children }) {
       socket.on('heistBlocked', (data) => {
         setNotification({
           type: 'success',
-          message: `Shield activated! ${data.attackerName}'s heist was blocked!`
+          message: `${data.attackerName}'s heist was blocked!`
         });
       });
 

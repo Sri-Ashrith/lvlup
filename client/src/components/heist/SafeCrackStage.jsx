@@ -1,167 +1,345 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Unlock, Key, AlertTriangle, Hash } from 'lucide-react';
+import { Unlock, Key, AlertTriangle, Hash, Sparkles, DollarSign, ChevronRight, ArrowLeft, Lock } from 'lucide-react';
+import PseudoCodePuzzle from './PseudoCodePuzzle';
+import SafeInputPanel from './SafeInputPanel';
+import AttemptTracker from './AttemptTracker';
 import LockPickAnimation from './LockPickAnimation';
 
 /**
- * Stage 2 — Crack the Safe
- * Pseudo code puzzles → generate 4-digit codes → only one is correct
- * Lock picking animation during attempts
+ * Stage 2 — Crack the Safe (Redesigned)
+ *
+ * Flow:
+ *  1. Puzzles are revealed ONE BY ONE
+ *  2. Player studies each puzzle, then advances to the next
+ *  3. After all 4 puzzles have been viewed, the safe input panel appears
+ *  4. The LAST character is revealed automatically as a hint
+ *  5. Players must figure out the first 3 characters by tracing the code
+ *  6. 6 attempts to enter the correct 3-character combination
+ *
+ * Props:
+ *  - puzzles: array of 4 { id, code } objects
+ *  - hint: the revealed last character
+ *  - hintIndex: position of the hint (always 3)
+ *  - attemptsRemaining: number (starts at 24)
+ *  - maxAttempts: total attempts allowed (24)
+ *  - onSubmit: (fullCode: string) => void
+ *  - isSubmitting: boolean
+ *  - success: boolean
  */
 export default function SafeCrackStage({
-  challenge,
-  codes,
-  attemptsRemaining,
+  puzzles = [],
+  hint = '?',
+  hintIndex = 3,
+  attemptsRemaining = 6,
+  maxAttempts = 6,
   onSubmit,
   isSubmitting,
   success
 }) {
-  const [selectedCode, setSelectedCode] = useState(null);
-  const [attempting, setAttempting] = useState(false);
+  const [currentPuzzle, setCurrentPuzzle] = useState(0);   // which puzzle is being shown
+  const [revealedCount, setRevealedCount] = useState(0);    // how many puzzles have been "studied"
+  const [allRevealed, setAllRevealed] = useState(false);    // all 4 seen → show safe input
   const [feedback, setFeedback] = useState(null);
+  const [prevAttempts, setPrevAttempts] = useState(attemptsRemaining);
 
-  const handleCodeSelect = (code) => {
+  // Detect wrong attempt by watching attemptsRemaining decrease
+  useEffect(() => {
+    if (attemptsRemaining < prevAttempts && !success) {
+      setFeedback('wrong');
+      const timer = setTimeout(() => setFeedback(null), 1200);
+      return () => clearTimeout(timer);
+    }
+    setPrevAttempts(attemptsRemaining);
+  }, [attemptsRemaining, success]);
+
+  // Success feedback
+  useEffect(() => {
+    if (success) setFeedback('success');
+  }, [success]);
+
+  const handleSubmit = (fullCode) => {
     if (isSubmitting || success) return;
-    setSelectedCode(code);
-    setFeedback(null);
+    onSubmit(fullCode);
   };
 
-  const handleSubmit = () => {
-    if (!selectedCode || isSubmitting || success) return;
-    setAttempting(true);
-    // Brief animation delay
-    setTimeout(() => {
-      onSubmit(selectedCode);
-      setAttempting(false);
-      setSelectedCode(null);
-    }, 1200);
+  const advancePuzzle = () => {
+    const nextRevealed = Math.max(revealedCount, currentPuzzle + 1);
+    setRevealedCount(nextRevealed);
+    if (currentPuzzle < puzzles.length - 1) {
+      setCurrentPuzzle(currentPuzzle + 1);
+    } else {
+      // All puzzles viewed
+      setAllRevealed(true);
+    }
   };
+
+  const goToPuzzle = (idx) => {
+    if (idx <= revealedCount) setCurrentPuzzle(idx);
+  };
+
+  const puzzle = puzzles[currentPuzzle];
+  const isLastPuzzle = currentPuzzle === puzzles.length - 1;
+  const canGoBack = allRevealed || currentPuzzle > 0;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="grid grid-cols-1 lg:grid-cols-5 gap-6"
     >
-      {/* Left side: Puzzle & Codes */}
-      <div className="lg:col-span-3">
-        <div className="gta-card p-6 heist-alert">
-          {/* Stage header */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Unlock className="w-5 h-5 text-gta-gold" />
-              <span className="font-digital text-gta-gold tracking-wider">CRACK THE SAFE</span>
+      {/* Phase 1: Reveal puzzles one-by-one */}
+      {!allRevealed && (
+        <div className="max-w-2xl mx-auto">
+          <div className="gta-card p-6 heist-alert">
+            {/* Stage header */}
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <Unlock className="w-5 h-5 text-gta-gold" />
+                <span className="font-digital text-gta-gold tracking-wider">CRACK THE SAFE</span>
+              </div>
+              <span className="text-gray-400 font-mono text-xs">
+                Puzzle {currentPuzzle + 1} / {puzzles.length}
+              </span>
             </div>
-            <span className="text-gta-red font-mono text-sm flex items-center gap-1">
-              <Key className="w-3 h-3" />
-              {attemptsRemaining} attempts left
-            </span>
-          </div>
 
-          {/* Pseudo code puzzle */}
-          <div className="bg-black/50 rounded p-4 mb-6 border border-gta-green/10">
-            <div className="flex items-center gap-2 mb-3">
-              <Hash className="w-4 h-4 text-gta-green/60" />
-              <span className="text-xs font-mono text-gta-green/60 uppercase tracking-wider">Pseudo Code Puzzle</span>
+            {/* Instructions */}
+            <div className="bg-black/40 rounded-lg p-3 mb-5 border border-gta-gold/10">
+              <p className="text-gray-400 font-mono text-xs leading-relaxed">
+                <Sparkles className="w-3 h-3 text-gta-gold inline mr-1" />
+                Study this pseudo-code carefully. Trace it to find the <span className="text-gta-gold">output character</span>.
+                Each puzzle gives you one character of the safe code.
+              </p>
             </div>
-            <pre className="font-mono text-sm text-gta-green/90 whitespace-pre-wrap leading-relaxed">
-              {challenge?.question}
-            </pre>
-          </div>
 
-          {/* Code selection */}
-          <div className="mb-4">
-            <p className="text-gray-400 font-mono text-sm mb-3">
-              Select the correct 4-digit code:
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              {(codes || []).map((code, index) => (
-                <motion.button
-                  key={code}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleCodeSelect(code)}
-                  disabled={isSubmitting || success || attempting}
+            {/* Progress dots */}
+            <div className="flex items-center justify-center gap-3 mb-6">
+              {puzzles.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => goToPuzzle(idx)}
+                  disabled={idx > revealedCount}
                   className={`
-                    p-4 rounded border-2 transition-all font-digital text-2xl tracking-[8px] text-center
-                    ${selectedCode === code 
-                      ? 'border-gta-gold bg-gta-gold/10 text-gta-gold shadow-lg shadow-gta-gold/20' 
-                      : 'border-gray-700 bg-gta-dark text-gray-400 hover:border-gta-gold/50 hover:text-gray-200'
+                    w-9 h-9 rounded-md flex items-center justify-center font-digital text-sm transition-all border
+                    ${idx === currentPuzzle
+                      ? 'border-gta-gold bg-gta-gold/20 text-gta-gold scale-110 shadow-lg shadow-gta-gold/20'
+                      : idx < revealedCount
+                        ? 'border-gta-green/30 bg-gta-green/5 text-gta-green/60 cursor-pointer hover:border-gta-green/50'
+                        : idx === revealedCount
+                          ? 'border-gray-600 bg-gray-800 text-gray-400'
+                          : 'border-gray-700/50 bg-gray-900 text-gray-700 cursor-not-allowed'
                     }
-                    ${(isSubmitting || attempting) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                   `}
                 >
-                  {code}
-                </motion.button>
+                  {idx + 1}
+                </button>
               ))}
             </div>
-          </div>
 
-          {/* Submit button */}
-          <button
-            onClick={handleSubmit}
-            disabled={!selectedCode || isSubmitting || success || attempting}
-            className="gta-button gta-button-success w-full disabled:opacity-50 text-lg py-4"
-          >
-            {attempting ? (
-              <span className="loading-dots">Cracking</span>
-            ) : isSubmitting ? (
-              <span className="loading-dots">Verifying</span>
-            ) : (
-              <>
-                <Key className="w-5 h-5 inline mr-2" />
-                ENTER CODE
-              </>
-            )}
-          </button>
-
-          {/* Attempts warning */}
-          {attemptsRemaining <= 1 && !success && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="mt-4 p-3 rounded border border-gta-red/30 bg-gta-red/5 flex items-center gap-2"
-            >
-              <AlertTriangle className="w-4 h-4 text-gta-red flex-shrink-0" />
-              <span className="text-gta-red text-sm font-mono">
-                Last attempt! Choose carefully.
-              </span>
-            </motion.div>
-          )}
-        </div>
-      </div>
-
-      {/* Right side: Lock Pick Animation */}
-      <div className="lg:col-span-2">
-        <div className="gta-card p-4 sticky top-24">
-          <LockPickAnimation
-            attempting={attempting || isSubmitting}
-            success={success}
-          />
-          
-          {/* Code display */}
-          <div className="mt-4 text-center">
-            <div className="flex justify-center gap-2">
-              {(selectedCode || '----').split('').map((char, i) => (
+            {/* Single puzzle display */}
+            <AnimatePresence mode="wait">
+              {puzzle && (
                 <motion.div
-                  key={i}
-                  initial={{ rotateY: 0 }}
-                  animate={{ rotateY: selectedCode ? 360 : 0 }}
-                  transition={{ delay: i * 0.1, duration: 0.4 }}
-                  className={`w-12 h-14 rounded border-2 flex items-center justify-center font-digital text-xl
-                    ${selectedCode 
-                      ? 'border-gta-gold bg-gta-gold/10 text-gta-gold' 
-                      : 'border-gray-700 bg-gta-dark text-gray-600'
-                    }`}
+                  key={puzzle.id}
+                  initial={{ opacity: 0, x: 40 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -40 }}
+                  transition={{ duration: 0.3 }}
                 >
-                  {char}
+                  <PseudoCodePuzzle
+                    index={currentPuzzle}
+                    image={puzzle.image}
+                    resolved={null}
+                    isHint={false}
+                  />
                 </motion.div>
-              ))}
+              )}
+            </AnimatePresence>
+
+            {/* Navigation */}
+            <div className="flex items-center justify-between mt-6">
+              <button
+                onClick={() => setCurrentPuzzle(prev => Math.max(0, prev - 1))}
+                disabled={currentPuzzle === 0}
+                className={`flex items-center gap-2 px-4 py-2 rounded font-condensed uppercase text-sm tracking-wider transition-all
+                  ${currentPuzzle === 0
+                    ? 'text-gray-700 cursor-not-allowed'
+                    : 'text-gray-400 hover:text-gta-green border border-gray-700 hover:border-gta-green/30'
+                  }
+                `}
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Previous
+              </button>
+
+              <button
+                onClick={advancePuzzle}
+                className="gta-button px-6 py-3 flex items-center gap-2"
+              >
+                {isLastPuzzle ? (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    Enter Safe Code
+                  </>
+                ) : (
+                  <>
+                    Next Puzzle
+                    <ChevronRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Phase 2: All puzzles revealed — show safe input + puzzle review */}
+      {allRevealed && (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* ── LEFT SIDE: Puzzle Review ── */}
+          <div className="lg:col-span-3">
+            <div className="gta-card p-5 heist-alert">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                  <Unlock className="w-5 h-5 text-gta-gold" />
+                  <span className="font-digital text-gta-gold tracking-wider">PUZZLE REVIEW</span>
+                </div>
+                <span className="text-gray-400 font-mono text-xs flex items-center gap-1">
+                  <Hash className="w-3 h-3" />
+                  4 puzzles → 4-char code
+                </span>
+              </div>
+
+              {/* Puzzle tabs */}
+              <div className="flex gap-2 mb-4">
+                {puzzles.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentPuzzle(idx)}
+                    className={`
+                      flex-1 py-2 rounded font-digital text-sm transition-all border
+                      ${idx === currentPuzzle
+                        ? idx === hintIndex
+                          ? 'border-gta-green bg-gta-green/15 text-gta-green'
+                          : 'border-gta-gold bg-gta-gold/15 text-gta-gold'
+                        : 'border-gray-700 bg-black/30 text-gray-500 hover:border-gray-600 hover:text-gray-400'
+                      }
+                    `}
+                  >
+                    Puzzle {idx + 1}
+                  </button>
+                ))}
+              </div>
+
+              {/* Active puzzle display */}
+              <AnimatePresence mode="wait">
+                {puzzle && (
+                  <motion.div
+                    key={puzzle.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <PseudoCodePuzzle
+                      index={currentPuzzle}
+                      image={puzzle.image}
+                      resolved={currentPuzzle === hintIndex ? hint : null}
+                      isHint={currentPuzzle === hintIndex}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Safe code summary */}
+              <div className="mt-5 p-3 rounded-lg bg-black/50 border border-gta-gold/10">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-digital text-gray-500 tracking-wider uppercase">
+                    Safe Code
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {puzzles.map((_, index) => (
+                      <div
+                        key={index}
+                        className={`
+                          w-8 h-9 rounded border flex items-center justify-center font-digital text-lg
+                          ${index === hintIndex
+                            ? 'border-gta-green/50 bg-gta-green/10 text-gta-green'
+                            : 'border-gray-700 bg-gta-dark text-gray-600'
+                          }
+                        `}
+                      >
+                        {index === hintIndex ? hint : '?'}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── RIGHT SIDE: Safe Lock Interface ── */}
+          <div className="lg:col-span-2">
+            <div className="gta-card p-4 sticky top-24 space-y-5">
+              {/* Lock Animation */}
+              <LockPickAnimation
+                attempting={isSubmitting}
+                success={success}
+              />
+
+              {/* Safe Input Panel */}
+              <SafeInputPanel
+                hint={hint}
+                hintIndex={hintIndex}
+                onSubmit={handleSubmit}
+                isSubmitting={isSubmitting}
+                success={success}
+                attemptsRemaining={attemptsRemaining}
+                feedback={feedback}
+              />
+
+              {/* Attempt Tracker */}
+              <AttemptTracker
+                total={maxAttempts}
+                remaining={attemptsRemaining}
+              />
+
+              {/* Wrong attempt flash */}
+              <AnimatePresence>
+                {feedback === 'wrong' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="p-3 rounded border border-gta-red/30 bg-gta-red/5 flex items-center gap-2"
+                  >
+                    <AlertTriangle className="w-4 h-4 text-gta-red flex-shrink-0" />
+                    <span className="text-gta-red text-xs font-mono">
+                      Wrong code! Defender power-up may activate.
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Success flash */}
+              <AnimatePresence>
+                {success && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="p-4 rounded border border-gta-green/40 bg-gta-green/10 text-center"
+                  >
+                    <DollarSign className="w-8 h-8 text-gta-green mx-auto mb-1" />
+                    <span className="font-digital text-gta-green text-sm tracking-wider">
+                      SAFE CRACKED — EXTRACTING CASH
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
