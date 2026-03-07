@@ -21,7 +21,7 @@ export function GameProvider({ children }) {
   const [defenderHeistEvents, setDefenderHeistEvents] = useState([]); // wrong answer/code events for defender
   const [fullscreenDisqualified, setFullscreenDisqualified] = useState(false);
   const [eventConfig, setEventConfig] = useState({
-    currentLevel: 1,
+    currentLevel: 0,
     isEventActive: true
   });
 
@@ -91,7 +91,7 @@ export function GameProvider({ children }) {
         setEventConfig(prev => ({
           ...prev,
           currentLevel: data.level,
-          levelStartTime: data.levelStartTime ?? prev.levelStartTime
+          levelStartTime: data.levelStartTime !== undefined ? data.levelStartTime : prev.levelStartTime
         }));
         if (team?.id) {
           updateTeam({ currentLevel: data.level });

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -62,23 +62,25 @@ export default function AdminPanel() {
     { id: 'TIME_FREEZE', name: 'Time Freeze' },
   ];
 
-  useEffect(() => {
-    loadEventState();
-    const interval = setInterval(loadEventState, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
   const authConfig = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
+  const authConfigRef = useRef(authConfig);
+  authConfigRef.current = authConfig;
 
-  const loadEventState = async () => {
+  const loadEventState = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_URL}/admin/event-state`, authConfig);
+      const response = await axios.get(`${API_URL}/admin/event-state`, authConfigRef.current);
       setEventState(response.data);
       setTeams(response.data.teams);
     } catch (error) {
       console.error('Failed to load event state:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadEventState();
+    const interval = setInterval(loadEventState, 5000);
+    return () => clearInterval(interval);
+  }, [loadEventState]);
 
   const handleAddCash = async (amount) => {
     if (!selectedTeam) return;
@@ -144,15 +146,18 @@ export default function AdminPanel() {
   const handleSetLevel = async (level) => {
     playSound('click');
     setIsLoading(true);
+    const prevState = eventState;
     setEventState(prev => prev ? { ...prev, eventConfig: { ...prev.eventConfig, currentLevel: level } } : prev);
     
     try {
-      await axios.post(`${API_URL}/admin/set-level`, { level }, authConfig);
+      await axios.post(`${API_URL}/admin/set-level`, { level }, authConfigRef.current);
       await loadEventState();
       fetchLeaderboard();
     } catch (error) {
       playSound('error');
       console.error('Failed to set level:', error);
+      // Rollback optimistic update on failure
+      setEventState(prevState);
     }
     
     setIsLoading(false);
