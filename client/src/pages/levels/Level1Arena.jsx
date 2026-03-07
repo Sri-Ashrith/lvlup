@@ -31,8 +31,15 @@ const SUB_LEVELS = [
 export default function Level1Arena() {
   const navigate = useNavigate();
   const { team, updateTeam } = useAuth();
-  const { getChallenges, submitAnswer } = useGame();
+  const { getChallenges, submitAnswer, eventConfig } = useGame();
   const { playSound } = useSound();
+
+  // Redirect to dashboard if this level is locked
+  useEffect(() => {
+    if (eventConfig.currentLevel !== 1) {
+      navigate('/dashboard');
+    }
+  }, [eventConfig.currentLevel, navigate]);
   
   const [activeSubLevel, setActiveSubLevel] = useState(null); // null = show selector
   const [challenges, setChallenges] = useState([]);

@@ -397,6 +397,10 @@ app.get('/api/event-config', authenticateToken, (req, res) => {
 
 app.get('/api/challenges/:level/:zone', authenticateToken, (req, res) => {
   const { level, zone } = req.params;
+  const requestedLevel = parseInt(level, 10);
+  if (gameState.eventConfig.currentLevel !== requestedLevel) {
+    return res.status(403).json({ error: 'This level is not currently active.', levelLocked: true });
+  }
   const levelKey = `level${level}`;
   
   if (!challenges[levelKey] || !challenges[levelKey][zone]) {
@@ -438,8 +442,13 @@ app.post('/api/challenges/submit', authenticateToken, (req, res) => {
   
   if (!team) return res.status(404).json({ error: 'Team not found' });
 
-  // TIME-01: Reject submissions if the level timer has expired
+  // LOCK-01: Reject submissions if the level is not active
   const lvlNum = parseInt(level, 10);
+  if (gameState.eventConfig.currentLevel !== lvlNum) {
+    return res.status(403).json({ error: 'This level is not currently active.', levelLocked: true });
+  }
+
+  // TIME-01: Reject submissions if the level timer has expired
   const lvlTimerSec = gameState.eventConfig.levelTimers[lvlNum];
   const lvlStart = gameState.eventConfig.levelStartTime;
   if (lvlTimerSec && lvlStart) {
@@ -605,6 +614,10 @@ app.post('/api/heist/use-powerup', authenticateToken, (req, res) => {
 });
 
 app.post('/api/heist/initiate', authenticateToken, (req, res) => {
+  // LOCK-02: Reject heist if level 3 is not active
+  if (gameState.eventConfig.currentLevel !== 3) {
+    return res.status(403).json({ error: 'This level is not currently active.', levelLocked: true });
+  }
   // TIME-02: Reject heist initiation if level 3 timer expired
   const l3Timer = gameState.eventConfig.levelTimers[3];
   const l3Start = gameState.eventConfig.levelStartTime;

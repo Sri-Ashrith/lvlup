@@ -66,8 +66,15 @@ const MAX_TOTAL = 6;
 export default function Level2Skills() {
   const navigate = useNavigate();
   const { team, updateTeam } = useAuth();
-  const { getChallenges, submitAnswer } = useGame();
+  const { getChallenges, submitAnswer, eventConfig } = useGame();
   const { playSound } = useSound();
+
+  // Redirect to dashboard if this level is locked
+  useEffect(() => {
+    if (eventConfig.currentLevel !== 2) {
+      navigate('/dashboard');
+    }
+  }, [eventConfig.currentLevel, navigate]);
 
   const [activeSection, setActiveSection] = useState(null);
   const [activeChallenge, setActiveChallenge] = useState(null);

@@ -47,6 +47,13 @@ export default function Level3Heist() {
     eventConfig
   } = useGame();
   const { playSound } = useSound();
+
+  // Redirect to dashboard if this level is locked
+  useEffect(() => {
+    if (eventConfig.currentLevel !== 3) {
+      navigate('/dashboard');
+    }
+  }, [eventConfig.currentLevel, navigate]);
   
   // Core state
   const [stage, setStage] = useState('select'); // select, compound, breached, safe, result, defending

@@ -88,13 +88,17 @@ export function GameProvider({ children }) {
       });
 
       socket.on('levelChange', (data) => {
-        setEventConfig(prev => ({ ...prev, currentLevel: data.level }));
+        setEventConfig(prev => ({
+          ...prev,
+          currentLevel: data.level,
+          levelStartTime: data.levelStartTime ?? prev.levelStartTime
+        }));
         if (team?.id) {
           updateTeam({ currentLevel: data.level });
         }
         setNotification({
           type: 'info',
-          message: `Level ${data.level} is now active!`
+          message: data.level === 0 ? 'All levels have been locked!' : `Level ${data.level} is now active!`
         });
       });
 
